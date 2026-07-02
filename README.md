@@ -13,7 +13,7 @@
   <a href="https://github.com/Torvinek/PlusX-Mobile/releases/tag/v1.5.1"><img src="https://img.shields.io/badge/Wersja-1.5.1-1683D8?style=for-the-badge" alt="Wersja 1.5.1"></a>
   <img src="https://img.shields.io/badge/Android-9%2B-3DDC84?style=for-the-badge&logo=android&logoColor=white" alt="Android 9 lub nowszy">
   <img src="https://img.shields.io/badge/Kotlin-2.0.21-7F52FF?style=for-the-badge&logo=kotlin&logoColor=white" alt="Kotlin 2.0.21">
-  <a href="LICENSE-PlusXMobile"><img src="https://img.shields.io/badge/Kod-source--available-C62828?style=for-the-badge" alt="Licencja PlusX Mobile Source-Available"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/Kod-source--available-C62828?style=for-the-badge" alt="Licencja Source-Available"></a>
 </p>
 
 <p align="center">
@@ -159,7 +159,7 @@ Szczegółowy model zabezpieczeń backendu opisuje [BACKEND_SECURITY.md](BACKEND
 
 ## Samodzielny build
 
-Kod można pobrać lokalnie w celu prywatnego audytu i testowania zgodnie z [LICENSE-PlusXMobile](LICENSE-PlusXMobile).
+Kod można pobrać lokalnie w celu prywatnego audytu i testowania zgodnie z [LICENSE](LICENSE).
 
 Wymagania:
 
@@ -227,7 +227,7 @@ Wynik musi być identyczny z wartością w pliku `.sha256` dołączonym do wydan
 
 Kod należący do autora projektu jest udostępniony na niestandardowej licencji **PlusX Mobile Source-Available License v1.0**:
 
-- [LICENSE-PlusXMobile](LICENSE-PlusXMobile)
+- [LICENSE](LICENSE)
 
 To nie jest licencja open source. Pozwala na przeglądanie kodu, prywatny audyt, lokalne sklonowanie i prywatny build testowy, ale bez pisemnej zgody autora zabrania między innymi:
 
