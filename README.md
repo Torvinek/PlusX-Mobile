@@ -1,82 +1,61 @@
-# PlusX Mobile - krotki opis
+# PlusX Mobile
 
-`PlusX Mobile` to prywatna aplikacja Android do wygodnego korzystania z panelu `new.plusx.tv` na telefonie.
+`PlusX Mobile` to nieoficjalna aplikacja Android przygotowana jako wygodniejsza, mobilna nakladka na panel PlusX.
 
-Nie bylo oficjalnego API, kodu backendu ani dostepu do bazy danych. Dlatego aplikacja dziala jako mobilna nakladka:
+Aplikacja powstala dlatego, ze oryginalny panel jest wygodny glownie na komputerze, a na telefonie korzystanie z niego jest malo komfortowe.
 
-- logowanie odbywa sie przez oryginalny WebView,
-- reCAPTCHA przechodzi uzytkownik,
-- po zalogowaniu aplikacja uzywa cookies,
-- pobiera HTML z panelu,
-- parsuje dane,
-- pokazuje je w ladnym mobilnym UI.
+## Co potrafi aplikacja
 
-## Co zostalo zrobione
-
-- dashboard z saldem,
-- duze logo PlusX w naglowku,
+- logowanie przez oryginalny panel w WebView,
+- obsluga reCAPTCHA bez obchodzenia zabezpieczen,
+- mobilny ekran glowny z saldem,
 - tryb jasny i ciemny,
-- wiadomosci z panelu i Telegrama,
-- zakladka `Programy na dzis` z wydarzeniami EPG,
-- pakiety z cenami miesiac/rok,
-- wybor uzytkownika w pakietach,
+- wiadomosci i komunikaty w czytelnym widoku,
+- lista programow na dzis,
+- podglad pakietow,
+- wybor uzytkownika przy pakietach,
 - potwierdzenie przed zakupem pakietu,
-- doladowanie konta przez oryginalny portal,
-- Reseller Panel z kontami, statusem i data wygasniecia,
-- Linki M3U z prawdziwym User Key,
-- dropdown uzytkownika w M3U,
-- loga dla TiviMate, Smart IPTV, SS IPTV i EPG,
-- animacje klikniec i przejsc,
-- ekran `Proszę czekać...`,
-- poprawione cofanie,
-- stopka `© Torvinek 2026`.
+- panel resellera,
+- linki M3U,
+- kopiowanie i pobieranie linkow,
+- diagnostyka do pomocy technicznej,
+- animacje i wygodniejsza nawigacja na telefonie.
 
-## Backend
+## Prywatnosc i bezpieczenstwo
 
-Aplikacja korzysta z prywatnego backendu Telegram:
+Aplikacja nie zbiera danych uzytkownika w celach analitycznych, reklamowych ani marketingowych.
 
-```text
-https://backend.torvinek.pl
-```
+Aplikacja nie korzysta z trackerow, reklam ani zewnetrznych systemow analitycznych.
 
-Endpointy:
+Logowanie odbywa sie przez oryginalna strone w WebView. Haslo i reCAPTCHA nie sa obslugiwane przez osobny, zewnetrzny formularz aplikacji.
 
-```text
-/telegram/plusx/status
-/telegram/plusx/wiadomosci
-/telegram/plusx/epgevent
-/telegram/plusx/diagnostics
-/panel
-```
+Dane diagnostyczne sa wysylane tylko wtedy, gdy uzytkownik sam wybierze taka opcje w aplikacji. Diagnostyka sluzy do pomocy technicznej i zawiera informacje potrzebne do znalezienia problemu, np. wersje aplikacji, model telefonu, ekran, z ktorym jest problem, oraz opcjonalny opis od uzytkownika.
 
-Backend pobiera wiadomosci i dzisiejsze wydarzenia EPG z Telegrama. Przyjmuje tez diagnostyke z aplikacji i pokazuje ja w prywatnym panelu:
+Diagnostyka nie jest narzedziem do sledzenia uzytkownika.
 
-```text
-https://backend.torvinek.pl/panel
-```
+## Dlaczego kod zrodlowy nie jest publiczny
 
-Panel ma logowanie i pozwala oznaczac zgloszenia jako zalatwione albo niezalatwione.
+Projekt nie zostaje udostepniony jako open source, poniewaz zawiera integracje z prywatnym backendem, prywatnym panelem oraz mechanizmy komunikacji wymagajace ochrony przed naduzyciami.
 
-## APK
+Publiczne udostepnienie kodu mogloby:
 
-Projekt:
+- ulatwic naduzycia wobec prywatnego backendu,
+- ujawnic szczegoly integracji,
+- zwiekszyc ryzyko obchodzenia limitow i zabezpieczen,
+- utrudnic utrzymanie aplikacji jako prywatnego narzedzia.
 
-```text
-D:\PlusX Mobile\PlusXMobile
-```
+Z tego powodu repozytorium zawiera tylko gotowy plik APK oraz publiczny opis aplikacji. Brak kodu zrodlowego nie oznacza, ze aplikacja zbiera dane. Oznacza tylko, ze backend i integracje nie sa wystawiane publicznie.
 
-Aktualny debug APK:
+## Instalacja
 
-```text
-D:\PlusX Mobile\PlusXMobile-debug.apk
-```
+Pobierz plik APK z sekcji `Releases` i zainstaluj go na Androidzie.
 
-Aktualny release APK:
+Android moze pokazac ostrzezenie, poniewaz aplikacja jest instalowana spoza Google Play. To normalne przy prywatnych aplikacjach APK.
 
-```text
-D:\PlusX Mobile\PlusXMobile-release.apk
-```
+## Status
 
-## Uwaga
+Aplikacja jest prywatnym projektem i moze wymagac aktualizacji, jezeli oryginalny panel zmieni swoj wyglad albo strukture HTML.
 
-Aplikacja jest prywatna. Poniewaz bazuje na parsowaniu HTML, moze wymagac poprawek, jezeli `new.plusx.tv` zmieni uklad strony.
+## Autor
+
+© Torvinek 2026
