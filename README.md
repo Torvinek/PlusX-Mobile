@@ -32,7 +32,7 @@
 > **PlusX Mobile jest projektem niezależnym i nieoficjalnym.** Nie jest własnością operatora panelu PlusX ani oficjalną aplikacją jego właściciela. Do działania wymagane jest własne, aktywne konto w obsługiwanym panelu.
 
 > [!CAUTION]
-> **Kod jest publicznie widoczny w celu przejrzystości, audytu bezpieczeństwa i lokalnego testowania, ale projekt nie jest open source.** Bez wcześniejszej pisemnej zgody autora zabronione jest kopiowanie kodu do innych repozytoriów, tworzenie lub publikowanie mirrorów i niezależnych forków, redystrybucja kodu albo APK oraz wydawanie aplikacji pochodnych. Wiążące warunki znajdują się w [LICENSE-PlusXMobile](LICENSE-PlusXMobile).
+> **Kod jest publicznie widoczny wyłącznie w celu przejrzystości, audytu bezpieczeństwa i prywatnego testowania. Projekt nie jest open source.** Bez wcześniejszej pisemnej zgody autora zabronione jest kopiowanie kodu do innych repozytoriów, tworzenie i publikowanie mirrorów lub niezależnych forków, redystrybucja źródeł albo APK, publikowanie aplikacji pochodnych oraz użycie komercyjne. Wiążące warunki znajdują się w pliku [LICENSE](LICENSE).
 
 ## Spis treści
 
@@ -44,6 +44,7 @@
 - [Instalacja](#instalacja)
 - [Samodzielny build](#samodzielny-build)
 - [Weryfikacja wydania](#weryfikacja-wydania)
+- [Zgłaszanie błędów](#zgłaszanie-błędów-i-problemów-bezpieczeństwa)
 - [Dokumentacja](#dokumentacja)
 - [Licencje](#licencje)
 
@@ -55,7 +56,7 @@ Aplikacja nie ma dostępu do bazy danych panelu i nie omija zabezpieczeń logowa
 
 1. logowanie odbywa się na oryginalnej stronie w `WebView`,
 2. użytkownik sam wpisuje dane i przechodzi reCAPTCHA,
-3. aplikacja przejmuje lokalną sesję po poprawnym zalogowaniu,
+3. aplikacja korzysta z lokalnej sesji po poprawnym zalogowaniu,
 4. strony panelu są pobierane bezpośrednio przez urządzenie użytkownika,
 5. parsery zamieniają potrzebne fragmenty HTML na natywny interfejs Androida,
 6. płatności, zmiana hasła, 2FA i finalne potwierdzenie zakupu pozostają w oryginalnym portalu.
@@ -71,7 +72,7 @@ Aplikacja nie ma dostępu do bazy danych panelu i nie omija zabezpieczeń logowa
 | **Reseller Panel** | automatyczna paginacja, status konta, data wygaśnięcia i przejście do pakietów lub M3U |
 | **Linki M3U** | prawdziwy User Key, TiviMate, Smart IPTV, SS IPTV, CDN-y oraz EPG |
 | **Ustawienia** | profil, motyw, zmiana hasła i 2FA przez oryginalny portal |
-| **Diagnostyka** | raport podstawowy albo zaawansowany wysyłany dopiero po zatwierdzeniu przez użytkownika |
+| **Diagnostyka** | raport podstawowy albo zaawansowany wysyłany dopiero po świadomym zatwierdzeniu przez użytkownika |
 
 ## Jak działa aplikacja
 
@@ -95,38 +96,53 @@ https://backend.torvinek.pl
 
 Klient panelu i klient backendu są rozdzielone. Token backendu nie jest wysyłany do panelu PlusX, a cookies panelu nie są wysyłane do backendu Torvinek.
 
+Więcej informacji znajduje się w [NETWORK.md](NETWORK.md) i [BACKEND_SECURITY.md](BACKEND_SECURITY.md).
+
 ## Prywatność i diagnostyka
 
-### Aplikacja nie wysyła do backendu Torvinek
+### Dane, których aplikacja nie wysyła do backendu Torvinek
 
-- loginu ani hasła do panelu,
+- hasła do panelu,
 - cookies sesji,
 - User Key,
-- pełnych linków M3U i parametrów `access_key`,
+- pełnych linków M3U i wartości `access_key`,
 - danych płatniczych,
 - zawartości kont resellerów,
-- surowego HTML stron panelu.
+- nieoczyszczonego surowego HTML stron panelu.
 
 ### Diagnostyka
 
-Diagnostyka nie jest wysyłana automatycznie w tle. Użytkownik sam otwiera formularz, wybiera zakres danych i zatwierdza wysłanie.
+Diagnostyka nie jest wysyłana automatycznie w tle. Użytkownik sam otwiera formularz, wybiera zakres danych i zatwierdza wysłanie raportu.
 
 Raport podstawowy może zawierać:
 
 - adres email kontaktowy wpisany świadomie przez użytkownika,
 - opis problemu,
 - datę i godzinę,
+- zakres raportu,
 - wersję aplikacji,
-- aktualny ekran i motyw,
-- producenta i model urządzenia,
-- wersję Androida,
+- aktualny ekran i ustawiony motyw,
+- producenta, model i nazwę urządzenia,
+- wersję Androida i SDK,
 - rozdzielczość, gęstość i orientację ekranu,
 - język systemu,
-- informacje techniczne potrzebne do odtworzenia błędu.
+- nazwę aktualnie wybranego użytkownika M3U,
+- nazwę aktualnie wybranego użytkownika Pakietów,
+- liczbę dostępnych użytkowników M3U/Pakietów,
+- liczbę lokalnie zapisanych snapshotów diagnostycznych.
 
-Raport zaawansowany może dodatkowo zawierać oczyszczony snapshot wybranej sekcji aplikacji. Sanitizator usuwa typowe sekrety, tokeny, hasła, adresy IP, parametry dostępowe i obce adresy email przed wysłaniem.
+Raport zaawansowany może dodatkowo zawierać oczyszczony snapshot wybranej sekcji aplikacji. Przed wysłaniem sanitizator próbuje wykryć i usunąć typowe dane wrażliwe, w tym:
 
-Pełny opis znajduje się w [PRIVACY.md](PRIVACY.md) i [NETWORK.md](NETWORK.md).
+- parametry sesji `ssn`,
+- nagłówki Bearer,
+- wartości pól podobnych do `password`, `passwd`, `token`, `secret` i `api_hash`,
+- adresy IPv4,
+- obce adresy email,
+- typowe parametry dostępowe i wartości przypominające klucze.
+
+Do diagnostyki zaawansowanej nie można wybrać ekranu doładowania ani ustawień konta.
+
+Pełny i wiążący opis zakresu raportów znajduje się w [PRIVACY.md](PRIVACY.md).
 
 ## Bezpieczeństwo sekretów
 
@@ -143,7 +159,7 @@ Publiczne repozytorium nie zawiera:
 Sekrety oficjalnego builda są przekazywane przez GitHub Actions Secrets. Lokalne pliki konfiguracyjne są ignorowane przez Git.
 
 > [!WARNING]
-> Sekret używany przez aplikację kliencką nie może być jednocześnie wbudowany w APK i absolutnie niewydobywalny z tego APK. Dlatego token mobilny powinien mieć wyłącznie minimalne uprawnienia do wiadomości, EPG i diagnostyki. Nie powinien zapewniać dostępu administracyjnego, dostępu do Telegrama, SSH, Cloudflare ani infrastruktury serwera.
+> Sekret używany przez aplikację kliencką nie może być jednocześnie wbudowany w APK i absolutnie niewydobywalny z tego APK. Dlatego token mobilny musi mieć wyłącznie minimalne uprawnienia potrzebne do wiadomości, EPG i diagnostyki. Nie powinien zapewniać dostępu administracyjnego, dostępu do Telegrama, SSH, Cloudflare ani infrastruktury serwera.
 
 Szczegółowy model zabezpieczeń backendu opisuje [BACKEND_SECURITY.md](BACKEND_SECURITY.md).
 
@@ -159,7 +175,7 @@ Szczegółowy model zabezpieczeń backendu opisuje [BACKEND_SECURITY.md](BACKEND
 
 ## Samodzielny build
 
-Kod można pobrać lokalnie w celu prywatnego audytu i testowania zgodnie z [LICENSE](LICENSE).
+Kod można pobrać lokalnie wyłącznie w celu prywatnego audytu i testowania, zgodnie z [LICENSE](LICENSE).
 
 Wymagania:
 
@@ -243,13 +259,15 @@ To nie jest licencja open source. Pozwala na przeglądanie kodu, prywatny audyt,
 
 ### Licencja MIT
 
-Repozytorium zawiera również:
+Repozytorium zawiera także plik:
 
 - [LICENSE-MIT](LICENSE-MIT)
 
-Plik ten dotyczy wyłącznie elementów, komponentów albo fragmentów kodu, które są wyraźnie oznaczone jako objęte licencją MIT. **Nie zmienia on licencji całego projektu i nie daje prawa do kopiowania lub redystrybucji kodu PlusX Mobile objętego `LICENSE-PlusXMobile`.**
+`LICENSE-MIT` **nie obejmuje całego repozytorium i nie zastępuje głównej licencji projektu**. Ma zastosowanie wyłącznie do konkretnego pliku, komponentu lub fragmentu kodu, który wprost wskazuje, że podlega licencji MIT.
 
-Biblioteki i zasoby stron trzecich zachowują własne licencje, znaki towarowe i prawa ich właścicieli.
+Brak takiego wyraźnego oznaczenia oznacza, że dany element podlega głównej licencji [LICENSE](LICENSE), a nie `LICENSE-MIT`.
+
+Biblioteki, usługi, zasoby, nazwy i znaki towarowe stron trzecich zachowują własne licencje oraz prawa ich właścicieli.
 
 ---
 
