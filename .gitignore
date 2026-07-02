@@ -1,0 +1,35 @@
+# Android / Gradle
+.gradle/
+**/build/
+.idea/
+*.iml
+.kotlin/
+local.properties
+
+# Signing and private keys
+signing.properties
+*.jks
+*.keystore
+*.p12
+*.pfx
+*.pem
+*.key
+
+# Runtime / backend secrets
+.env
+.env.*
+secrets.properties
+*.session
+*.session-journal
+
+# OS / editor
+.DS_Store
+Thumbs.db
+*.swp
+*.tmp
+
+# Generated packages
+*.apk
+*.aab
+*.zip
+*.tar.gz

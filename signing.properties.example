@@ -1,0 +1,5 @@
+# Never commit signing.properties or the keystore.
+storeFile=C:\\path\\to\\plusx-release.keystore
+storePassword=CHANGE_ME
+keyAlias=plusx
+keyPassword=CHANGE_ME

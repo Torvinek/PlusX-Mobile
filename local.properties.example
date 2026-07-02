@@ -1,0 +1,10 @@
+# Android SDK path (adjust to your machine)
+sdk.dir=C:\\Users\\YOUR_NAME\\AppData\\Local\\Android\\Sdk
+
+# Optional overrides
+# PLUSX_PORTAL_BASE_URL=https://new.plusx.tv
+# PLUSX_BACKEND_BASE_URL=https://backend.torvinek.pl
+
+# Required for the official backend features (news, EPG and diagnostics).
+# Never commit the real value.
+PLUSX_BACKEND_TOKEN=PASTE_READ_ONLY_APP_TOKEN_HERE

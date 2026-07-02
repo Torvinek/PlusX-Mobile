@@ -5,153 +5,135 @@
 <h1 align="center">PlusX Mobile</h1>
 
 <p align="center">
-  <strong>Nieoficjalna aplikacja Android z mobilnym interfejsem dla panelu PlusX.</strong>
+  <strong>Nieoficjalna aplikacja Android z natywnym interfejsem mobilnym dla panelu PlusX.</strong>
 </p>
 
 <p align="center">
-  <a href="https://github.com/Torvinek/PlusX-Mobile/releases/latest">
-    <img src="https://img.shields.io/github/v/release/Torvinek/PlusX-Mobile?style=for-the-badge&label=Najnowsza%20wersja" alt="Najnowsza wersja">
-  </a>
-  <a href="https://github.com/Torvinek/PlusX-Mobile/releases">
-    <img src="https://img.shields.io/github/downloads/Torvinek/PlusX-Mobile/total?style=for-the-badge&label=Pobrania" alt="Liczba pobrań">
-  </a>
+  <a href="https://github.com/Torvinek/PlusX-Mobile/actions/workflows/android-ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/Torvinek/PlusX-Mobile/android-ci.yml?branch=main&style=for-the-badge&label=Build" alt="Build"></a>
+  <a href="https://github.com/Torvinek/PlusX-Mobile/releases/latest"><img src="https://img.shields.io/github/v/release/Torvinek/PlusX-Mobile?style=for-the-badge&label=Wersja" alt="Wersja"></a>
   <img src="https://img.shields.io/badge/Android-9%2B-3DDC84?style=for-the-badge&logo=android&logoColor=white" alt="Android 9+">
-</p>
-
-<p align="center">
-  <a href="https://github.com/Torvinek/PlusX-Mobile/releases/latest">
-    <img src="https://img.shields.io/badge/Pobierz-najnowsze%20APK-009FE3?style=for-the-badge&logo=android&logoColor=white" alt="Pobierz APK">
-  </a>
+  <img src="https://img.shields.io/badge/Kotlin-2.0.21-7F52FF?style=for-the-badge&logo=kotlin&logoColor=white" alt="Kotlin">
 </p>
 
 > [!IMPORTANT]
-> PlusX Mobile jest projektem nieoficjalnym i nie jest powiązany z właścicielem panelu PlusX. Do działania wymaga aktywnego konta w obsługiwanym panelu.
+> Projekt jest niezależny i nieoficjalny. Do działania wymaga własnego, aktywnego konta w obsługiwanym panelu.
 
-## O aplikacji
+## Jak działa
 
-Oryginalny panel PlusX został przygotowany głównie z myślą o komputerach. **PlusX Mobile** porządkuje najważniejsze funkcje panelu i prezentuje je w wygodnym, natywnym interfejsie dopasowanym do telefonu.
+Logowanie odbywa się w oryginalnej stronie `new.plusx.tv` otwartej w WebView. Użytkownik sam wpisuje dane i przechodzi reCAPTCHA. Po zalogowaniu aplikacja używa cookies wyłącznie do pobierania stron panelu i przedstawia dane w natywnym interfejsie Androida.
 
-Aplikacja nie zastępuje oryginalnego systemu logowania ani płatności. Logowanie, reCAPTCHA i operacje wymagające dodatkowego potwierdzenia nadal odbywają się przez oryginalny portal.
+Aplikacja nie posiada dostępu do bazy panelu, nie omija logowania i nie omija reCAPTCHA.
 
-## Najważniejsze funkcje
+## Funkcje
 
-| Panel i konto | Pakiety i multimedia |
-|---|---|
-| Natywny ekran główny z saldem | Przegląd dostępnych pakietów |
-| Wiadomości i komunikaty | Wybór użytkownika dla pakietów i M3U |
-| Programy na dziś | Linki TiviMate, Smart IPTV i SS IPTV |
-| Panel resellera | Kopiowanie i pobieranie list M3U |
-| Ustawienia konta | Dostęp do EPG |
-| Ręczne odświeżanie danych | Potwierdzenie przed rozpoczęciem zakupu |
+- natywny dashboard z saldem,
+- wiadomości z panelu i backendu,
+- „Programy na dziś” / EPG,
+- pakiety oraz wybór użytkownika,
+- panel resellera z paginacją,
+- linki M3U, EPG i prawdziwy User Key,
+- TiviMate, Smart IPTV oraz SS IPTV,
+- jasny i ciemny motyw,
+- płatności i finalny zakup przez oryginalny portal,
+- podstawowa i zaawansowana diagnostyka wysyłana po świadomym potwierdzeniu użytkownika.
 
-### Wygoda użytkowania
+## Diagnostyka
 
-- automatyczny motyw jasny i ciemny,
-- czytelne karty i nawigacja mobilna,
-- wyszukiwane listy użytkowników,
-- animacje przejść i stany ładowania,
-- poprawiona obsługa przycisku Wstecz,
-- diagnostyka uruchamiana wyłącznie przez użytkownika.
+Diagnostyka działa tak samo jak w prywatnej wersji aplikacji.
 
-## Instalacja
+**Podstawowa** może zawierać m.in.:
 
-1. Otwórz stronę [Najnowsze wydanie](https://github.com/Torvinek/PlusX-Mobile/releases/latest).
-2. Pobierz plik z rozszerzeniem `.apk`.
-3. Zezwól przeglądarce lub menedżerowi plików na instalowanie aplikacji z tego źródła.
-4. Uruchom instalator APK i potwierdź instalację.
+- email kontaktowy podany przez użytkownika,
+- opis problemu,
+- datę i godzinę,
+- wersję aplikacji,
+- aktualny ekran i motyw,
+- producenta, model i nazwę urządzenia,
+- wersję Androida,
+- rozdzielczość, gęstość i orientację ekranu,
+- język systemu,
+- informację o wybranym użytkowniku M3U/Pakietów,
+- liczbę zapisanych snapshotów.
 
-> [!NOTE]
-> Android lub Google Play Protect może wyświetlić ostrzeżenie, ponieważ aplikacja jest instalowana spoza Google Play. Jest to standardowe zachowanie dla prywatnie dystrybuowanych plików APK.
+**Zaawansowana** dodatkowo może dołączyć oczyszczony snapshot wybranej sekcji: Dashboard, Wiadomości, Programy na dziś, Pakiety, Reseller Panel lub Linki M3U.
 
-## Wymagania
+Przed wysłaniem aplikacja usuwa z raportu typowe sekrety, tokeny, hasła, adresy IP i cudze adresy email. Diagnostyka jest wysyłana dopiero po wejściu użytkownika w odpowiednią funkcję i zatwierdzeniu formularza. Szczegóły: [PRIVACY.md](PRIVACY.md).
 
-- Android 9 lub nowszy,
-- aktywne konto w panelu PlusX,
-- połączenie z internetem,
-- WebView / Google Chrome dostępny w systemie.
+## Rozdzielenie ruchu sieciowego
 
-## Jak to działa
+Aplikacja ma dwie osobne strefy zaufania:
 
 ```text
-Oryginalne logowanie w WebView
-            ↓
-     aktywna sesja i cookies
-            ↓
- pobieranie wybranych stron panelu
-            ↓
-      odczyt danych z HTML
-            ↓
-  natywny interfejs PlusX Mobile
+new.plusx.tv
+  └─ cookies sesji panelu
+
+backend.torvinek.pl
+  └─ token aplikacyjny tylko dla wiadomości, EPG i diagnostyki
 ```
 
-Panel nie udostępnia oficjalnego API dla tej aplikacji. Z tego powodu część danych jest odczytywana ze stron panelu. Jeżeli właściciel panelu zmieni strukturę HTML, wybrane funkcje mogą wymagać aktualizacji aplikacji.
+Kod sprawdza dokładny host i HTTPS. Cookies panelu nie są dołączane do żądań backendu, a token backendu nie jest dołączany do żądań panelu. Szczegóły: [NETWORK.md](NETWORK.md).
 
-## Prywatność i bezpieczeństwo
+## Sekrety i publiczne repozytorium
 
-- brak reklam,
-- brak trackerów marketingowych,
-- brak zewnętrznych systemów analitycznych,
-- hasło i reCAPTCHA są obsługiwane przez oryginalną stronę logowania,
-- płatności oraz końcowe potwierdzenie zakupu pozostają w oryginalnym portalu,
-- diagnostyka jest wysyłana tylko po świadomym uruchomieniu jej przez użytkownika.
+Repozytorium nie zawiera:
 
-Przy zgłaszaniu problemu **nie publikuj** loginu, hasła, User Key, plików cookies, pełnych linków M3U ani danych płatniczych.
+- tokenu backendu,
+- haseł do keystore,
+- prywatnego keystore,
+- sesji Telegram,
+- danych Cloudflare,
+- lokalnych plików konfiguracyjnych.
 
-## Dlaczego kod źródłowy nie jest publiczny
+Wartości dla oficjalnego builda są przekazywane przez zaszyfrowane GitHub Actions Secrets albo lokalny, ignorowany przez Git plik `local.properties`.
 
-Repozytorium służy do publikowania wydań APK oraz dokumentacji użytkowej. Kod źródłowy pozostaje prywatny, ponieważ projekt zawiera integracje z prywatnym panelem i backendem oraz mechanizmy, których publiczne udostępnienie mogłoby ułatwić nadużycia.
+> [!WARNING]
+> Długotrwałego sekretu używanego przez aplikację kliencką nie da się uczynić absolutnie niewydobywalnym z gotowego APK. Dlatego token aplikacyjny musi mieć wyłącznie minimalne uprawnienia potrzebne do odczytu wiadomości/EPG i wysyłania diagnostyki, bez dostępu administracyjnego, SSH, Telegrama ani panelu backendu. Prawdziwe sekrety pozostają wyłącznie po stronie serwera.
 
-Brak publicznego kodu źródłowego nie oznacza automatycznego zbierania danych. Zakres działania aplikacji opisano w sekcji [Prywatność i bezpieczeństwo](#prywatność-i-bezpieczeństwo).
+## Budowanie
 
-## Zgłaszanie problemów
+Wymagania:
 
-Przed utworzeniem zgłoszenia sprawdź, czy używasz najnowszej wersji aplikacji. W zgłoszeniu podaj:
+- JDK 17,
+- Android SDK 35,
+- Android Studio lub Gradle Wrapper.
 
-- wersję PlusX Mobile,
-- model telefonu i wersję Androida,
-- ekran, na którym wystąpił problem,
-- kroki pozwalające odtworzyć błąd,
-- zrzut ekranu bez danych wrażliwych.
+```bash
+./gradlew test assembleDebug
+```
 
-[Utwórz zgłoszenie błędu](https://github.com/Torvinek/PlusX-Mobile/issues/new?template=bug_report.yml)
+APK debug:
 
-## Najczęstsze pytania
+```text
+app/build/outputs/apk/debug/app-debug.apk
+```
 
-<details>
-<summary><strong>Czy jest to oficjalna aplikacja PlusX?</strong></summary>
+Aby wiadomości, EPG i diagnostyka działały z chronionym backendem, ustaw lokalnie `PLUSX_BACKEND_TOKEN` zgodnie z [BUILDING.md](BUILDING.md). Bez tokenu aplikacja nadal się kompiluje, a funkcje panelu PlusX pozostają dostępne.
 
-Nie. PlusX Mobile jest niezależnym, nieoficjalnym projektem.
+## Weryfikacja
 
-</details>
+Każdy push i pull request uruchamia testy i buduje APK przez GitHub Actions. Wydanie z taga może zostać podpisane i opublikowane automatycznie wraz z sumą SHA-256.
 
-<details>
-<summary><strong>Czy aplikacja omija reCAPTCHA albo zabezpieczenia logowania?</strong></summary>
+```powershell
+Get-FileHash .\PlusX-Mobile.apk -Algorithm SHA256
+```
 
-Nie. Logowanie odbywa się przez oryginalny panel w WebView, a reCAPTCHA użytkownik przechodzi ręcznie.
+## Dokumentacja
 
-</details>
+- [PRIVACY.md](PRIVACY.md) — prywatność i diagnostyka,
+- [NETWORK.md](NETWORK.md) — połączenia i separacja danych,
+- [BUILDING.md](BUILDING.md) — lokalny build i sekrety,
+- [SECURITY.md](SECURITY.md) — zgłaszanie problemów bezpieczeństwa,
+- [BACKEND_SECURITY.md](BACKEND_SECURITY.md) — model tokenów i wariant bez sekretu w APK,
+- [CONTRIBUTING.md](CONTRIBUTING.md) — zasady zmian,
+- [UPLOAD_TO_GITHUB.md](UPLOAD_TO_GITHUB.md) — publikacja i sekrety CI,
+- [VALIDATION.md](VALIDATION.md) — wykonane kontrole.
 
-<details>
-<summary><strong>Dlaczego część funkcji może przestać działać po zmianach panelu?</strong></summary>
+## Licencja
 
-Aplikacja korzysta z danych dostępnych w HTML panelu. Zmiana układu lub nazw elementów strony może wymagać aktualizacji parserów.
-
-</details>
-
-<details>
-<summary><strong>Gdzie pobrać bezpieczną, aktualną wersję?</strong></summary>
-
-Wyłącznie z sekcji [Releases](https://github.com/Torvinek/PlusX-Mobile/releases) tego repozytorium.
-
-</details>
-
-## Status projektu
-
-Projekt jest aktywnie rozwijany. Aktualizacje pojawiają się, gdy dodawane są nowe funkcje albo zmiany w oryginalnym panelu wymagają dostosowania aplikacji.
+Kod aplikacji jest udostępniony na licencji [MIT](LICENSE). Nazwy, logotypy i usługi stron trzecich pozostają własnością ich właścicieli.
 
 ---
 
 <p align="center">
-  <strong>© Torvinek 2026</strong><br>
-  Nieoficjalny projekt społecznościowy dla systemu Android.
+  <strong>© Torvinek 2026</strong>
 </p>

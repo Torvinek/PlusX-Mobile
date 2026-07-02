@@ -1,5 +1,5 @@
 blank_issues_enabled: false
 contact_links:
-  - name: Pobierz najnowszą wersję
-    url: https://github.com/Torvinek/PlusX-Mobile/releases/latest
-    about: Przed zgłoszeniem problemu sprawdź aktualne wydanie aplikacji.
+  - name: Problem bezpieczeństwa
+    url: https://github.com/Torvinek/PlusX-Mobile/security
+    about: Nie publikuj sekretów ani danych użytkowników w zwykłym Issue.
