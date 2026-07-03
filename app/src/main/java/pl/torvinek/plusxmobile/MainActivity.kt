@@ -9,6 +9,7 @@ import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
+import android.content.ActivityNotFoundException
 import android.content.pm.PackageManager
 import android.content.res.Configuration
 import android.graphics.Color
@@ -2249,11 +2250,11 @@ class MainActivity : Activity() {
             return
         }
         val intent = Intent(Intent.ACTION_VIEW, uri)
-        if (intent.resolveActivity(packageManager) == null) {
+        try {
+            startActivity(intent)
+        } catch (_: ActivityNotFoundException) {
             Toast.makeText(this, "Nie udalo sie otworzyc strony wsparcia.", Toast.LENGTH_LONG).show()
-            return
         }
-        startActivity(intent)
     }
 
     private fun rememberDashboardAndMaybeShowSupport() {
