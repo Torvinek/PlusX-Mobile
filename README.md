@@ -438,9 +438,9 @@ Plik [LICENSE-MIT](LICENSE-MIT) ma zastosowanie wyłącznie do elementów, któr
 ## Autor
 
 **Torvinek**  
-GitHub: [@Torvinek](https://github.com/Torvinek)
-Telegram: [@marclxz](https://t.me/marclxz)
-Email: [prywatny.marcelo@gmail.com](mailto:prywatny.marcelo@gmail.com)
+GitHub: [@Torvinek](https://github.com/Torvinek),
+Telegram: [@marclxz](https://t.me/marclxz),
+Email: [prywatny.marcelo@gmail.com](mailto:prywatny.marcelo@gmail.com).
 
 <p align="center">
   <strong>© Torvinek 2026</strong><br>
