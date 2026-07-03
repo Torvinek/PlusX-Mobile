@@ -1,5 +1,5 @@
-<p align="center">
-  <img src="https://raw.githubusercontent.com/Torvinek/PlusX-Mobile/main/assets/plusx-banner.png" width="820" alt="PlusX Mobile — nieoficjalna aplikacja Android dla panelu PlusX">
+﻿<p align="center">
+  <img src="https://raw.githubusercontent.com/Torvinek/PlusX-Mobile/main/assets/plusx-banner.png" width="820" alt="PlusX Mobile â€” nieoficjalna aplikacja Android dla panelu PlusX">
 </p>
 
 <h1 align="center">PlusX Mobile</h1>
@@ -10,172 +10,173 @@
 
 <p align="center">
   <a href="https://github.com/Torvinek/PlusX-Mobile/actions/workflows/android-ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/Torvinek/PlusX-Mobile/android-ci.yml?branch=main&style=for-the-badge&label=Build" alt="Status builda"></a>
-  <a href="https://github.com/Torvinek/PlusX-Mobile/releases/tag/v1.5.1"><img src="https://img.shields.io/badge/Wersja-1.5.1-1683D8?style=for-the-badge" alt="Wersja 1.5.1"></a>
+  <a href="https://github.com/Torvinek/PlusX-Mobile/releases/latest"><img src="https://img.shields.io/badge/Wersja-latest-1683D8?style=for-the-badge" alt="Najnowsza wersja"></a>
   <img src="https://img.shields.io/badge/Android-9%2B-3DDC84?style=for-the-badge&logo=android&logoColor=white" alt="Android 9 lub nowszy">
   <img src="https://img.shields.io/badge/Kotlin-2.0.21-7F52FF?style=for-the-badge&logo=kotlin&logoColor=white" alt="Kotlin 2.0.21">
   <a href="LICENSE"><img src="https://img.shields.io/badge/Kod-source--available-C62828?style=for-the-badge" alt="Licencja Source-Available"></a>
 </p>
 
 <p align="center">
-  <a href="https://github.com/Torvinek/PlusX-Mobile/releases/latest"><strong>⬇️ Pobierz najnowsze APK</strong></a>
-  &nbsp;•&nbsp;
-  <a href="PRIVACY.md">Prywatność</a>
-  &nbsp;•&nbsp;
-  <a href="SECURITY.md">Bezpieczeństwo</a>
-  &nbsp;•&nbsp;
+  <a href="https://github.com/Torvinek/PlusX-Mobile/releases/latest"><strong>â¬‡ď¸Ź Pobierz najnowsze APK</strong></a>
+  &nbsp;â€˘&nbsp;
+  <a href="PRIVACY.md">PrywatnoĹ›Ä‡</a>
+  &nbsp;â€˘&nbsp;
+  <a href="SECURITY.md">BezpieczeĹ„stwo</a>
+  &nbsp;â€˘&nbsp;
   <a href="BUILDING.md">Samodzielny build</a>
 </p>
 
 ---
 
 > [!IMPORTANT]
-> **PlusX Mobile jest projektem niezależnym i nieoficjalnym.** Nie jest własnością operatora panelu PlusX ani oficjalną aplikacją jego właściciela. Do działania wymagane jest własne, aktywne konto w obsługiwanym panelu.
+> **PlusX Mobile jest projektem niezaleĹĽnym i nieoficjalnym.** Nie jest wĹ‚asnoĹ›ciÄ… operatora panelu PlusX ani oficjalnÄ… aplikacjÄ… jego wĹ‚aĹ›ciciela. Do dziaĹ‚ania wymagane jest wĹ‚asne, aktywne konto w obsĹ‚ugiwanym panelu.
 
 > [!CAUTION]
-> **Kod jest publicznie widoczny wyłącznie w celu przejrzystości, audytu bezpieczeństwa i prywatnego testowania. Projekt nie jest open source.** Bez wcześniejszej pisemnej zgody autora zabronione jest kopiowanie kodu do innych repozytoriów, tworzenie i publikowanie mirrorów lub niezależnych forków, redystrybucja źródeł albo APK, publikowanie aplikacji pochodnych oraz użycie komercyjne. Wiążące warunki znajdują się w pliku [LICENSE](LICENSE).
+> **Kod jest publicznie widoczny wyĹ‚Ä…cznie w celu przejrzystoĹ›ci, audytu bezpieczeĹ„stwa i prywatnego testowania. Projekt nie jest open source.** Bez wczeĹ›niejszej pisemnej zgody autora zabronione jest kopiowanie kodu do innych repozytoriĂłw, tworzenie i publikowanie mirrorĂłw lub niezaleĹĽnych forkĂłw, redystrybucja ĹşrĂłdeĹ‚ albo APK, publikowanie aplikacji pochodnych oraz uĹĽycie komercyjne. WiÄ…ĹĽÄ…ce warunki znajdujÄ… siÄ™ w pliku [LICENSE](LICENSE).
 
-## Spis treści
+## Spis treĹ›ci
 
 - [O projekcie](#o-projekcie)
-- [Najważniejsze funkcje](#najważniejsze-funkcje)
-- [Jak działa aplikacja](#jak-działa-aplikacja)
-- [Prywatność i diagnostyka](#prywatność-i-diagnostyka)
-- [Bezpieczeństwo sekretów](#bezpieczeństwo-sekretów)
+- [NajwaĹĽniejsze funkcje](#najwaĹĽniejsze-funkcje)
+- [Jak dziaĹ‚a aplikacja](#jak-dziaĹ‚a-aplikacja)
+- [PrywatnoĹ›Ä‡ i diagnostyka](#prywatnoĹ›Ä‡-i-diagnostyka)
+- [BezpieczeĹ„stwo sekretĂłw](#bezpieczeĹ„stwo-sekretĂłw)
 - [Instalacja](#instalacja)
 - [Samodzielny build](#samodzielny-build)
 - [Weryfikacja wydania](#weryfikacja-wydania)
-- [Zgłaszanie błędów](#zgłaszanie-błędów-i-problemów-bezpieczeństwa)
+- [ZgĹ‚aszanie bĹ‚Ä™dĂłw](#zgĹ‚aszanie-bĹ‚Ä™dĂłw-i-problemĂłw-bezpieczeĹ„stwa)
 - [Dokumentacja](#dokumentacja)
 - [Licencje](#licencje)
 
 ## O projekcie
 
-Oryginalny panel `new.plusx.tv` został przygotowany przede wszystkim z myślą o komputerach. PlusX Mobile porządkuje jego najważniejsze funkcje i przedstawia je w interfejsie dopasowanym do telefonu.
+Oryginalny panel `new.plusx.tv` zostaĹ‚ przygotowany przede wszystkim z myĹ›lÄ… o komputerach. PlusX Mobile porzÄ…dkuje jego najwaĹĽniejsze funkcje i przedstawia je w interfejsie dopasowanym do telefonu.
 
-Aplikacja nie ma dostępu do bazy danych panelu i nie omija zabezpieczeń logowania. Działa jako mobilna warstwa nad istniejącym serwisem:
+Aplikacja nie ma dostÄ™pu do bazy danych panelu i nie omija zabezpieczeĹ„ logowania. DziaĹ‚a jako mobilna warstwa nad istniejÄ…cym serwisem:
 
-1. logowanie odbywa się na oryginalnej stronie w `WebView`,
-2. użytkownik sam wpisuje dane i przechodzi reCAPTCHA,
+1. logowanie odbywa siÄ™ na oryginalnej stronie w `WebView`,
+2. uĹĽytkownik sam wpisuje dane i przechodzi reCAPTCHA,
 3. aplikacja korzysta z lokalnej sesji po poprawnym zalogowaniu,
-4. strony panelu są pobierane bezpośrednio przez urządzenie użytkownika,
-5. parsery zamieniają potrzebne fragmenty HTML na natywny interfejs Androida,
-6. płatności, zmiana hasła, 2FA i finalne potwierdzenie zakupu pozostają w oryginalnym portalu.
+4. strony panelu sÄ… pobierane bezpoĹ›rednio przez urzÄ…dzenie uĹĽytkownika,
+5. parsery zamieniajÄ… potrzebne fragmenty HTML na natywny interfejs Androida,
+6. pĹ‚atnoĹ›ci, zmiana hasĹ‚a, 2FA i finalne potwierdzenie zakupu pozostajÄ… w oryginalnym portalu.
 
-## Najważniejsze funkcje
+## NajwaĹĽniejsze funkcje
 
 | Obszar | Funkcje |
 |---|---|
-| **Panel główny** | saldo, odświeżanie balansu, szybka nawigacja, animacje oraz jasny i ciemny motyw |
-| **Wiadomości** | informacje z panelu i backendu, oczyszczanie treści oraz usuwanie duplikatów |
-| **Programy na dziś** | wydarzenia EPG, kanał, godziny rozpoczęcia i zakończenia oraz bitrate |
-| **Pakiety** | ceny miesięczne i roczne, wybór użytkownika oraz potwierdzenie przed przejściem do zakupu |
-| **Reseller Panel** | automatyczna paginacja, status konta, data wygaśnięcia i przejście do pakietów lub M3U |
+| **Panel gĹ‚Ăłwny** | saldo, odĹ›wieĹĽanie balansu, szybka nawigacja, animacje oraz jasny i ciemny motyw |
+| **WiadomoĹ›ci** | informacje z panelu i backendu, oczyszczanie treĹ›ci oraz usuwanie duplikatĂłw |
+| **Programy na dziĹ›** | wydarzenia EPG, kanaĹ‚, godziny rozpoczÄ™cia i zakoĹ„czenia oraz bitrate |
+| **Pakiety** | ceny miesiÄ™czne i roczne, wybĂłr uĹĽytkownika oraz potwierdzenie przed przejĹ›ciem do zakupu |
+| **Reseller Panel** | automatyczna paginacja, status konta, data wygaĹ›niÄ™cia i przejĹ›cie do pakietĂłw lub M3U |
 | **Linki M3U** | prawdziwy User Key, TiviMate, Smart IPTV, SS IPTV, CDN-y oraz EPG |
-| **Ustawienia** | profil, motyw, zmiana hasła i 2FA przez oryginalny portal |
-| **Diagnostyka** | raport podstawowy albo zaawansowany wysyłany dopiero po świadomym zatwierdzeniu przez użytkownika |
+| **Ustawienia** | profil, motyw, zmiana hasĹ‚a i 2FA przez oryginalny portal |
+| **Diagnostyka** | raport podstawowy albo zaawansowany wysyĹ‚any dopiero po Ĺ›wiadomym zatwierdzeniu przez uĹĽytkownika |
 
-## Jak działa aplikacja
+## Jak dziaĹ‚a aplikacja
 
 ### Panel PlusX
 
-Połączenia do panelu są wykonywane bezpośrednio pomiędzy telefonem użytkownika a:
+PoĹ‚Ä…czenia do panelu sÄ… wykonywane bezpoĹ›rednio pomiÄ™dzy telefonem uĹĽytkownika a:
 
 ```text
 https://new.plusx.tv
 ```
 
-Cookies sesji są używane wyłącznie dla właściwego hosta panelu. Nie są przekazywane do backendu projektu.
+Cookies sesji sÄ… uĹĽywane wyĹ‚Ä…cznie dla wĹ‚aĹ›ciwego hosta panelu. Nie sÄ… przekazywane do backendu projektu.
 
 ### Backend projektu
 
-Backend Torvinek służy do pobierania wiadomości, programu EPG oraz — po zgodzie użytkownika — odbierania diagnostyki:
+Backend Torvinek sĹ‚uĹĽy do pobierania wiadomoĹ›ci, programu EPG oraz â€” po zgodzie uĹĽytkownika â€” odbierania diagnostyki:
 
 ```text
 https://backend.torvinek.pl
 ```
 
-Klient panelu i klient backendu są rozdzielone. Token backendu nie jest wysyłany do panelu PlusX, a cookies panelu nie są wysyłane do backendu Torvinek.
+Klient panelu i klient backendu sÄ… rozdzielone. Token backendu nie jest wysyĹ‚any do panelu PlusX, a cookies panelu nie sÄ… wysyĹ‚ane do backendu Torvinek.
 
-Więcej informacji znajduje się w [NETWORK.md](NETWORK.md) i [BACKEND_SECURITY.md](BACKEND_SECURITY.md).
+WiÄ™cej informacji znajduje siÄ™ w [NETWORK.md](NETWORK.md) i [BACKEND_SECURITY.md](BACKEND_SECURITY.md).
 
-## Prywatność i diagnostyka
+## PrywatnoĹ›Ä‡ i diagnostyka
 
-### Dane, których aplikacja nie wysyła do backendu Torvinek
+### Dane, ktĂłrych aplikacja nie wysyĹ‚a do backendu Torvinek
 
-- hasła do panelu,
+- hasĹ‚a do panelu,
 - cookies sesji,
 - User Key,
-- pełnych linków M3U i wartości `access_key`,
-- danych płatniczych,
-- zawartości kont resellerów,
+- peĹ‚nych linkĂłw M3U i wartoĹ›ci `access_key`,
+- danych pĹ‚atniczych,
+- zawartoĹ›ci kont resellerĂłw,
 - nieoczyszczonego surowego HTML stron panelu.
 
 ### Diagnostyka
 
-Diagnostyka nie jest wysyłana automatycznie w tle. Użytkownik sam otwiera formularz, wybiera zakres danych i zatwierdza wysłanie raportu.
+Diagnostyka nie jest wysyĹ‚ana automatycznie w tle. UĹĽytkownik sam otwiera formularz, wybiera zakres danych i zatwierdza wysĹ‚anie raportu.
 
-Raport podstawowy może zawierać:
+Raport podstawowy moĹĽe zawieraÄ‡:
 
-- adres email kontaktowy wpisany świadomie przez użytkownika,
+- adres email kontaktowy wpisany Ĺ›wiadomie przez uĹĽytkownika,
 - opis problemu,
-- datę i godzinę,
+- datÄ™ i godzinÄ™,
 - zakres raportu,
-- wersję aplikacji,
+- wersjÄ™ aplikacji,
 - aktualny ekran i ustawiony motyw,
-- producenta, model i nazwę urządzenia,
-- wersję Androida i SDK,
-- rozdzielczość, gęstość i orientację ekranu,
-- język systemu,
-- nazwę aktualnie wybranego użytkownika M3U,
-- nazwę aktualnie wybranego użytkownika Pakietów,
-- liczbę dostępnych użytkowników M3U/Pakietów,
-- liczbę lokalnie zapisanych snapshotów diagnostycznych.
+- producenta, model i nazwÄ™ urzÄ…dzenia,
+- wersjÄ™ Androida i SDK,
+- rozdzielczoĹ›Ä‡, gÄ™stoĹ›Ä‡ i orientacjÄ™ ekranu,
+- jÄ™zyk systemu,
+- nazwÄ™ aktualnie wybranego uĹĽytkownika M3U,
+- nazwÄ™ aktualnie wybranego uĹĽytkownika PakietĂłw,
+- liczbÄ™ dostÄ™pnych uĹĽytkownikĂłw M3U/PakietĂłw,
+- liczbÄ™ lokalnie zapisanych snapshotĂłw diagnostycznych.
 
-Raport zaawansowany może dodatkowo zawierać oczyszczony snapshot wybranej sekcji aplikacji. Przed wysłaniem sanitizator próbuje wykryć i usunąć typowe dane wrażliwe, w tym:
+Raport zaawansowany moĹĽe dodatkowo zawieraÄ‡ oczyszczony snapshot wybranej sekcji aplikacji. Przed wysĹ‚aniem sanitizator prĂłbuje wykryÄ‡ i usunÄ…Ä‡ typowe dane wraĹĽliwe, w tym:
 
 - parametry sesji `ssn`,
-- nagłówki Bearer,
-- wartości pól podobnych do `password`, `passwd`, `token`, `secret` i `api_hash`,
+- nagĹ‚Ăłwki Bearer,
+- wartoĹ›ci pĂłl podobnych do `password`, `passwd`, `token`, `secret` i `api_hash`,
 - adresy IPv4,
 - obce adresy email,
-- typowe parametry dostępowe i wartości przypominające klucze.
+- typowe parametry dostÄ™powe i wartoĹ›ci przypominajÄ…ce klucze.
 
-Do diagnostyki zaawansowanej nie można wybrać ekranu doładowania ani ustawień konta.
+Do diagnostyki zaawansowanej nie moĹĽna wybraÄ‡ ekranu doĹ‚adowania ani ustawieĹ„ konta.
 
-Pełny i wiążący opis zakresu raportów znajduje się w [PRIVACY.md](PRIVACY.md).
+PeĹ‚ny i wiÄ…ĹĽÄ…cy opis zakresu raportĂłw znajduje siÄ™ w [PRIVACY.md](PRIVACY.md).
 
-## Bezpieczeństwo sekretów
+## BezpieczeĹ„stwo sekretĂłw
 
 Publiczne repozytorium nie zawiera:
 
 - tokenu backendu,
-- haseł do keystore,
+- haseĹ‚ do keystore,
 - prywatnego keystore,
 - sesji Telegram,
 - danych Cloudflare Tunnel,
-- plików `.env`, `local.properties` ani `signing.properties`,
-- danych logowania użytkowników.
+- plikĂłw `.env`, `local.properties` ani `signing.properties`,
+- danych logowania uĹĽytkownikĂłw.
 
-Sekrety oficjalnego builda są przekazywane przez GitHub Actions Secrets. Lokalne pliki konfiguracyjne są ignorowane przez Git.
+Sekrety oficjalnego builda sÄ… przekazywane przez GitHub Actions Secrets. Lokalne pliki konfiguracyjne sÄ… ignorowane przez Git.
 
 > [!WARNING]
-> Sekret używany przez aplikację kliencką nie może być jednocześnie wbudowany w APK i absolutnie niewydobywalny z tego APK. Dlatego token mobilny musi mieć wyłącznie minimalne uprawnienia potrzebne do wiadomości, EPG i diagnostyki. Nie powinien zapewniać dostępu administracyjnego, dostępu do Telegrama, SSH, Cloudflare ani infrastruktury serwera.
+> Sekret uĹĽywany przez aplikacjÄ™ klienckÄ… nie moĹĽe byÄ‡ jednoczeĹ›nie wbudowany w APK i absolutnie niewydobywalny z tego APK. Dlatego token mobilny musi mieÄ‡ wyĹ‚Ä…cznie minimalne uprawnienia potrzebne do wiadomoĹ›ci, EPG i diagnostyki. Nie powinien zapewniaÄ‡ dostÄ™pu administracyjnego, dostÄ™pu do Telegrama, SSH, Cloudflare ani infrastruktury serwera.
 
-Szczegółowy model zabezpieczeń backendu opisuje [BACKEND_SECURITY.md](BACKEND_SECURITY.md).
+SzczegĂłĹ‚owy model zabezpieczeĹ„ backendu opisuje [BACKEND_SECURITY.md](BACKEND_SECURITY.md).
 
 ## Instalacja
 
-1. Otwórz stronę [najnowszego wydania](https://github.com/Torvinek/PlusX-Mobile/releases/latest).
+1. OtwĂłrz stronÄ™ [najnowszego wydania](https://github.com/Torvinek/PlusX-Mobile/releases/latest).
 2. Pobierz plik APK.
-3. Porównaj jego sumę SHA-256 z plikiem dołączonym do wydania.
-4. Zezwól Androidowi na instalowanie aplikacji z wybranego źródła.
-5. Zainstaluj APK i zaloguj się przez oryginalny formularz panelu.
+3. Pobierz plik `.sha256.txt`, ktory znajduje sie przy kazdym wydaniu na GitHubie.
+4. Porownaj sume SHA-256 pobranego APK z wartoscia zapisana w pliku `.sha256.txt`.
+5. Zezwol Androidowi na instalowanie aplikacji z wybranego zrodla.
+6. Zainstaluj APK i zaloguj sie przez oryginalny formularz panelu.
 
 **Wymagany system:** Android 9 lub nowszy, czyli API 28+.
 
 ## Samodzielny build
 
-Kod można pobrać lokalnie wyłącznie w celu prywatnego audytu i testowania, zgodnie z [LICENSE](LICENSE).
+Kod moĹĽna pobraÄ‡ lokalnie wyĹ‚Ä…cznie w celu prywatnego audytu i testowania, zgodnie z [LICENSE](LICENSE).
 
 Wymagania:
 
@@ -201,77 +202,79 @@ Gotowy debug APK:
 app/build/outputs/apk/debug/app-debug.apk
 ```
 
-Podstawowe funkcje panelu można zbudować bez prywatnego tokenu. Wiadomości, EPG i wysyłka diagnostyki do chronionego backendu wymagają lokalnej konfiguracji opisanej w [BUILDING.md](BUILDING.md).
+Podstawowe funkcje panelu moĹĽna zbudowaÄ‡ bez prywatnego tokenu. WiadomoĹ›ci, EPG i wysyĹ‚ka diagnostyki do chronionego backendu wymagajÄ… lokalnej konfiguracji opisanej w [BUILDING.md](BUILDING.md).
 
 ## Weryfikacja wydania
 
-Każdy push i pull request uruchamia testy oraz budowanie debug APK w GitHub Actions. Oficjalne wydania utworzone z tagów mogą być podpisywane automatycznie i publikowane razem z sumą SHA-256.
+KaĹĽdy push i pull request uruchamia testy oraz budowanie debug APK w GitHub Actions. Oficjalne wydania utworzone z tagĂłw mogÄ… byÄ‡ podpisywane automatycznie i publikowane razem z sumÄ… SHA-256.
 
 ### Windows PowerShell
 
 ```powershell
-Get-FileHash .\PlusX-Mobile-v1.5.1.apk -Algorithm SHA256
+Get-FileHash .\PlusXMobile-ReleasevX.Y.Z.apk -Algorithm SHA256
 ```
 
 ### Linux
 
 ```bash
-sha256sum PlusX-Mobile-v1.5.1.apk
+sha256sum PlusXMobile-ReleasevX.Y.Z.apk
 ```
 
-Wynik musi być identyczny z wartością w pliku `.sha256` dołączonym do wydania.
+Przy kazdym GitHub Release publikowany jest osobny plik `.sha256.txt` dla APK. Wynik komendy musi byc identyczny z wartoscia zapisana w tym pliku.
 
-## Zgłaszanie błędów i problemów bezpieczeństwa
+## ZgĹ‚aszanie bĹ‚Ä™dĂłw i problemĂłw bezpieczeĹ„stwa
 
-- Zwykłe błędy zgłaszaj przez zakładkę **Issues**.
-- Nie publikuj w zgłoszeniu cookies, tokenów, User Key, pełnych linków M3U, danych kont ani surowego HTML panelu.
-- Problemy bezpieczeństwa zgłaszaj zgodnie z [SECURITY.md](SECURITY.md).
+- ZwykĹ‚e bĹ‚Ä™dy zgĹ‚aszaj przez zakĹ‚adkÄ™ **Issues**.
+- Nie publikuj w zgĹ‚oszeniu cookies, tokenĂłw, User Key, peĹ‚nych linkĂłw M3U, danych kont ani surowego HTML panelu.
+- Problemy bezpieczeĹ„stwa zgĹ‚aszaj zgodnie z [SECURITY.md](SECURITY.md).
 
 ## Dokumentacja
 
-- [PRIVACY.md](PRIVACY.md) — prywatność i zakres diagnostyki,
-- [NETWORK.md](NETWORK.md) — domeny i separacja ruchu,
-- [BUILDING.md](BUILDING.md) — lokalne budowanie i konfiguracja,
-- [SECURITY.md](SECURITY.md) — bezpieczne zgłaszanie podatności,
-- [BACKEND_SECURITY.md](BACKEND_SECURITY.md) — model tokenów backendu,
-- [CONTRIBUTING.md](CONTRIBUTING.md) — zasady proponowania zmian,
-- [VALIDATION.md](VALIDATION.md) — wykonane kontrole projektu.
+- [PRIVACY.md](PRIVACY.md) â€” prywatnoĹ›Ä‡ i zakres diagnostyki,
+- [NETWORK.md](NETWORK.md) â€” domeny i separacja ruchu,
+- [BUILDING.md](BUILDING.md) â€” lokalne budowanie i konfiguracja,
+- [SECURITY.md](SECURITY.md) â€” bezpieczne zgĹ‚aszanie podatnoĹ›ci,
+- [BACKEND_SECURITY.md](BACKEND_SECURITY.md) â€” model tokenĂłw backendu,
+- [CONTRIBUTING.md](CONTRIBUTING.md) â€” zasady proponowania zmian,
+- [VALIDATION.md](VALIDATION.md) â€” wykonane kontrole projektu.
 
 ## Licencje
 
 ### Kod PlusX Mobile
 
-Kod należący do autora projektu jest udostępniony na niestandardowej licencji **PlusX Mobile Source-Available License v1.0**:
+Kod naleĹĽÄ…cy do autora projektu jest udostÄ™pniony na niestandardowej licencji **PlusX Mobile Source-Available License v1.0**:
 
 - [LICENSE](LICENSE)
 
-To nie jest licencja open source. Pozwala na przeglądanie kodu, prywatny audyt, lokalne sklonowanie i prywatny build testowy, ale bez pisemnej zgody autora zabrania między innymi:
+To nie jest licencja open source. Pozwala na przeglÄ…danie kodu, prywatny audyt, lokalne sklonowanie i prywatny build testowy, ale bez pisemnej zgody autora zabrania miÄ™dzy innymi:
 
-- kopiowania lub importowania całości albo istotnych fragmentów kodu do innego repozytorium,
-- tworzenia i utrzymywania publicznych mirrorów,
+- kopiowania lub importowania caĹ‚oĹ›ci albo istotnych fragmentĂłw kodu do innego repozytorium,
+- tworzenia i utrzymywania publicznych mirrorĂłw,
 - publikowania forka jako osobnego projektu lub alternatywnej dystrybucji,
-- redystrybucji kodu źródłowego,
+- redystrybucji kodu ĹşrĂłdĹ‚owego,
 - redystrybucji oficjalnego albo zmodyfikowanego APK,
 - tworzenia i publikowania aplikacji pochodnych,
 - wykorzystania komercyjnego,
 - usuwania informacji o autorze i prawach autorskich,
-- podszywania się pod oficjalne wydanie PlusX Mobile.
+- podszywania siÄ™ pod oficjalne wydanie PlusX Mobile.
 
 ### Licencja MIT
 
-Repozytorium zawiera także plik:
+Repozytorium zawiera takĹĽe plik:
 
 - [LICENSE-MIT](LICENSE-MIT)
 
-`LICENSE-MIT` **nie obejmuje całego repozytorium i nie zastępuje głównej licencji projektu**. Ma zastosowanie wyłącznie do konkretnego pliku, komponentu lub fragmentu kodu, który wprost wskazuje, że podlega licencji MIT.
+`LICENSE-MIT` **nie obejmuje caĹ‚ego repozytorium i nie zastÄ™puje gĹ‚Ăłwnej licencji projektu**. Ma zastosowanie wyĹ‚Ä…cznie do konkretnego pliku, komponentu lub fragmentu kodu, ktĂłry wprost wskazuje, ĹĽe podlega licencji MIT.
 
-Brak takiego wyraźnego oznaczenia oznacza, że dany element podlega głównej licencji [LICENSE](LICENSE), a nie `LICENSE-MIT`.
+Brak takiego wyraĹşnego oznaczenia oznacza, ĹĽe dany element podlega gĹ‚Ăłwnej licencji [LICENSE](LICENSE), a nie `LICENSE-MIT`.
 
-Biblioteki, usługi, zasoby, nazwy i znaki towarowe stron trzecich zachowują własne licencje oraz prawa ich właścicieli.
+Biblioteki, usĹ‚ugi, zasoby, nazwy i znaki towarowe stron trzecich zachowujÄ… wĹ‚asne licencje oraz prawa ich wĹ‚aĹ›cicieli.
 
 ---
 
 <p align="center">
-  <strong>© Torvinek 2026 · PlusX Mobile 1.5.1</strong><br>
-  <sub>Source available for transparency — redistribution prohibited.</sub>
+  <strong>Â© Torvinek 2026 Â· PlusX Mobile</strong><br>
+  <sub>Source available for transparency â€” redistribution prohibited.</sub>
 </p>
+
+
