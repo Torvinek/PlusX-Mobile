@@ -44,6 +44,9 @@ jobs:
           test -n "$ANDROID_KEY_ALIAS" || { echo "Missing ANDROID_KEY_ALIAS"; exit 1; }
           test -n "$ANDROID_KEY_PASSWORD" || { echo "Missing ANDROID_KEY_PASSWORD"; exit 1; }
 
+      - name: Verify repository
+        run: bash scripts/check-repository.sh
+
       - name: Restore signing key
         shell: bash
         run: |
@@ -54,9 +57,6 @@ jobs:
             printf 'keyAlias=%s\n' "$ANDROID_KEY_ALIAS"
             printf 'keyPassword=%s\n' "$ANDROID_KEY_PASSWORD"
           } > signing.properties
-
-      - name: Verify repository
-        run: bash scripts/check-repository.sh
 
       - name: Test and build signed release
         run: |
