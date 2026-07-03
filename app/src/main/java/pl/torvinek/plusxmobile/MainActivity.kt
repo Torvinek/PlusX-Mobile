@@ -3,7 +3,6 @@
 import android.annotation.SuppressLint
 import android.Manifest
 import android.app.Activity
-import android.app.AlertDialog
 import android.app.Dialog
 import android.content.ClipData
 import android.content.ClipboardManager
@@ -13,6 +12,7 @@ import android.content.ActivityNotFoundException
 import android.content.pm.PackageManager
 import android.content.res.Configuration
 import android.graphics.Color
+import android.graphics.drawable.ColorDrawable
 import android.graphics.drawable.GradientDrawable
 import android.net.Uri
 import android.os.Build
@@ -58,14 +58,39 @@ import java.util.Locale
 import java.util.TimeZone
 
 class MainActivity : Activity() {
-    private val baseUrl = AppConfig.portalBaseUrl
+    private val baseUrl = hidden(
+        50, 46, 46, 42, 41, 96, 117, 117, 52, 63, 45, 116, 42, 54, 47, 41, 34, 116, 46, 44
+    )
     private val indexUrl = "$baseUrl/index.php"
     private val loginUrl = "$baseUrl/login.php"
-    private val telegramNewsUrl = "${AppConfig.backendBaseUrl}/telegram/plusx/wiadomosci?limit=80"
-    private val telegramEpgUrl = "${AppConfig.backendBaseUrl}/telegram/plusx/epgevent?limit=200"
-    private val diagnosticsSubmitUrl = "${AppConfig.backendBaseUrl}/telegram/plusx/diagnostics"
-    private val githubLatestReleaseUrl = "https://api.github.com/repos/Torvinek/PlusX-Mobile/releases/latest"
-    private val telegramBackendToken = AppConfig.backendToken
+    private val telegramNewsUrl = hidden(
+        50, 46, 46, 42, 41, 96, 117, 117, 56, 59, 57, 49, 63, 52, 62, 116, 46, 53, 40, 44, 51,
+        52, 63, 49, 116, 42, 54, 117, 46, 63, 54, 63, 61, 40, 59, 55, 117, 42, 54, 47, 41,
+        34, 117, 45, 51, 59, 62, 53, 55, 53, 41, 57, 51, 101, 54, 51, 55, 51, 46, 103, 98,
+        106
+    )
+    private val telegramEpgUrl = hidden(
+        50, 46, 46, 42, 41, 96, 117, 117, 56, 59, 57, 49, 63, 52, 62, 116, 46, 53, 40, 44, 51,
+        52, 63, 49, 116, 42, 54, 117, 46, 63, 54, 63, 61, 40, 59, 55, 117, 42, 54, 47, 41,
+        34, 117, 63, 42, 61, 63, 44, 63, 52, 46, 101, 54, 51, 55, 51, 46, 103, 104, 106, 106
+    )
+    private val diagnosticsSubmitUrl = hidden(
+        50, 46, 46, 42, 41, 96, 117, 117, 56, 59, 57, 49, 63, 52, 62, 116, 46, 53, 40, 44, 51,
+        52, 63, 49, 116, 42, 54, 117, 46, 63, 54, 63, 61, 40, 59, 55, 117, 42, 54, 47, 41,
+        34, 117, 62, 51, 59, 61, 52, 53, 41, 46, 51, 57, 41
+    )
+    private val githubLatestReleaseUrl = hidden(
+        50, 46, 46, 42, 41, 96, 117, 117, 59, 42, 51, 116, 61, 51, 46, 50, 47, 56, 116,
+        57, 53, 55, 117, 40, 63, 42, 53, 41, 117, 14, 53, 40, 44, 51, 52, 63, 49, 117,
+        10, 54, 47, 41, 2, 119, 23, 53, 56, 51, 54, 63, 117, 40, 63, 54, 63, 59, 41,
+        63, 41, 117, 54, 59, 46, 63, 41, 46
+    )
+    private val telegramBackendToken = hidden(
+        17, 18, 41, 60, 30, 32, 61, 109, 27, 18, 43, 2, 53, 43, 48, 50, 32, 98, 15, 51, 45,
+        18, 30, 17, 45, 14, 46, 61, 19, 111, 10, 32, 107, 56, 54, 30, 110, 43, 46, 22, 40,
+        47, 41
+    )
+
     private lateinit var root: FrameLayout
     private var cookieHeader: String = ""
     private var lastDashboardHtml: String = ""
@@ -624,6 +649,140 @@ class MainActivity : Activity() {
             cornerRadius = dp(radius).toFloat()
             if (strokeColor != 0) setStroke(dp(1), strokeColor)
         }
+    }
+
+    private fun showModernMessage(
+        titleText: String,
+        messageText: String,
+        positiveText: String = "OK",
+        negativeText: String? = null,
+        contentView: View? = null,
+        dismissOnPositive: Boolean = true,
+        onPositive: (() -> Unit)? = null,
+        onNegative: (() -> Unit)? = null
+    ): Dialog {
+        val dialog = Dialog(this)
+        val card = LinearLayout(this)
+        card.orientation = LinearLayout.VERTICAL
+        card.setPadding(dp(22), dp(22), dp(22), dp(26))
+        card.background = rounded(cardColor(), 24, strokeColor())
+
+        val icon = TextView(this)
+        icon.text = "!"
+        icon.gravity = Gravity.CENTER
+        icon.textSize = 22f
+        icon.setTypeface(null, 1)
+        icon.setTextColor(Color.WHITE)
+        icon.background = rounded(Color.rgb(14, 165, 180), 16)
+        card.addView(icon, LinearLayout.LayoutParams(dp(52), dp(52)).apply { gravity = Gravity.CENTER_HORIZONTAL })
+
+        val title = TextView(this)
+        title.text = titleText
+        title.textSize = 22f
+        title.setTypeface(null, 1)
+        title.gravity = Gravity.CENTER
+        title.setTextColor(textColor())
+        card.addView(title, LinearLayout.LayoutParams(-1, -2).apply { setMargins(0, dp(16), 0, 0) })
+
+        if (messageText.isNotBlank()) {
+            val body = TextView(this)
+            body.text = messageText
+            body.textSize = 15f
+            body.gravity = Gravity.CENTER
+            body.setLineSpacing(0f, 1.08f)
+            body.setTextColor(if (darkMode) Color.rgb(203, 213, 225) else Color.rgb(52, 64, 84))
+            card.addView(body, LinearLayout.LayoutParams(-1, -2).apply { setMargins(0, dp(12), 0, 0) })
+        }
+
+        contentView?.let {
+            card.addView(it, LinearLayout.LayoutParams(-1, -2).apply { setMargins(0, dp(14), 0, 0) })
+        }
+
+        val row = LinearLayout(this)
+        row.orientation = LinearLayout.HORIZONTAL
+        row.gravity = Gravity.CENTER
+
+        negativeText?.let {
+            val negative = dialogButton(it, primary = false) {
+                dialog.dismiss()
+                onNegative?.invoke()
+            }
+            row.addView(negative)
+        }
+
+        val positive = dialogButton(positiveText, primary = true) {
+            if (dismissOnPositive) dialog.dismiss()
+            onPositive?.invoke()
+        }
+        row.addView(positive)
+
+        card.addView(row, LinearLayout.LayoutParams(-1, -2).apply { setMargins(0, dp(12), 0, 0) })
+
+        dialog.setContentView(card)
+        dialog.window?.setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
+        val dialogWidth = (resources.displayMetrics.widthPixels - dp(64)).coerceAtMost(dp(400))
+        dialog.window?.setLayout(dialogWidth, ViewGroup.LayoutParams.WRAP_CONTENT)
+        dialog.show()
+        dialog.window?.setLayout(dialogWidth, ViewGroup.LayoutParams.WRAP_CONTENT)
+        card.alpha = 0f
+        card.scaleX = 0.96f
+        card.scaleY = 0.96f
+        card.animate().alpha(1f).scaleX(1f).scaleY(1f).setDuration(180).start()
+        return dialog
+    }
+
+    private fun dialogButton(text: String, primary: Boolean = false, onClick: () -> Unit): Button {
+        val button = Button(this)
+        button.text = text
+        button.textSize = 14f
+        button.setAllCaps(false)
+        button.minHeight = 0
+        button.minimumHeight = 0
+        button.includeFontPadding = false
+        button.setPadding(dp(10), 0, dp(10), 0)
+        button.setTextColor(if (primary) Color.WHITE else textColor())
+        button.background = rounded(
+            if (primary) Color.rgb(14, 165, 180) else cardColor(),
+            14,
+            if (primary) 0 else strokeColor()
+        )
+        button.setOnClickListener {
+            it.animate().scaleX(0.97f).scaleY(0.97f).setDuration(70).withEndAction {
+                it.animate().scaleX(1f).scaleY(1f).setDuration(90).start()
+                onClick()
+            }.start()
+        }
+        button.layoutParams = LinearLayout.LayoutParams(0, dp(56), 1f).apply {
+            setMargins(dp(5), dp(10), dp(5), 0)
+        }
+        return button
+    }
+
+    private fun showModernOptions(titleText: String, options: List<String>, onSelected: (Int) -> Unit) {
+        val list = LinearLayout(this)
+        list.orientation = LinearLayout.VERTICAL
+        options.forEachIndexed { index, label ->
+            val row = TextView(this)
+            row.text = label
+            row.textSize = 15f
+            row.setTextColor(textColor())
+            row.setPadding(dp(14), dp(12), dp(14), dp(12))
+            row.background = rounded(if (darkMode) Color.rgb(15, 23, 42) else Color.rgb(245, 247, 251), 14, strokeColor())
+            row.setOnClickListener {
+                (list.tag as? Dialog)?.dismiss()
+                onSelected(index)
+            }
+            list.addView(row, LinearLayout.LayoutParams(-1, -2).apply { setMargins(0, dp(8), 0, 0) })
+        }
+        val dialog = showModernMessage(titleText, "", positiveText = "Anuluj", contentView = list)
+        list.tag = dialog
+    }
+
+    private fun styleDialogInput(input: EditText) {
+        input.setTextColor(textColor())
+        input.setHintTextColor(mutedColor())
+        input.setPadding(dp(14), dp(10), dp(14), dp(10))
+        input.background = rounded(if (darkMode) Color.rgb(15, 23, 42) else Color.rgb(245, 247, 251), 14, strokeColor())
     }
 
     private fun bgColor(): Int {
@@ -2220,13 +2379,10 @@ class MainActivity : Activity() {
             Toast.makeText(this, "Brak linkow CDN", Toast.LENGTH_SHORT).show()
             return
         }
-        val labels = links.map { "CDN ${it.cdn} - ${it.region}" }.toTypedArray()
-        AlertDialog.Builder(this)
-            .setTitle("Wybierz link")
-            .setItems(labels) { _, index ->
+        val labels = links.map { "CDN ${it.cdn} - ${it.region}" }
+        showModernOptions("Wybierz link", labels) { index ->
                 startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(links[index].fullUrl)))
-            }
-            .show()
+        }
     }
 
     private fun openExternalOrPortal(url: String) {
@@ -2674,7 +2830,7 @@ class MainActivity : Activity() {
         val date = Regex("(\\d{2}\\.\\d{2}\\.\\d{4}\\s+\\d{2}:\\d{2})").find(block)?.groupValues?.get(1) ?: return null
         val amountRaw = Regex("([+-]\\d+(?:[.,]\\d+)?)").find(block.substringAfter(date))?.groupValues?.get(1) ?: return null
         val amount = amountRaw.replace(",", ".").toDoubleOrNull() ?: return null
-        val user = extractBillingUser(block)
+        val user = extractBillingUser(block).ifBlank { currentBillingMainUser }
         val reason = when {
             amount > 0 -> "Doladowanie konta"
             block.contains("Purchase of package", true) -> "Zakup pakietu"
@@ -2716,11 +2872,7 @@ class MainActivity : Activity() {
 
     private fun showBillingDetails(id: String) {
         val details = billingDetails[id].orEmpty()
-        AlertDialog.Builder(this)
-            .setTitle("Szczegoly historii")
-            .setMessage(details.ifBlank { "Brak szczegolow dla tego wpisu." })
-            .setPositiveButton("OK", null)
-            .show()
+        showModernMessage("Szczegoly historii", details.ifBlank { "Brak szczegolow dla tego wpisu." })
     }
 
     private fun extractBillingUser(block: String): String {
@@ -3009,10 +3161,20 @@ class MainActivity : Activity() {
             .replace("&#160;", " ")
             .replace(Regex("\\s+"), " ")
             .trim()
-        if (clean.contains("protected", true) || clean.contains("@")) {
-        return parseDashboardUsername(lastDashboardHtml).ifBlank { clean.substringBefore("@").ifBlank { clean } }
+        if (clean.contains("protected", true)) {
+            return parseDashboardEmail(lastDashboardHtml)
+                .ifBlank { parseDashboardUsername(lastDashboardHtml) }
+                .ifBlank { clean }
         }
         return clean
+    }
+
+    private fun parseDashboardEmail(html: String): String {
+        return Regex("[A-Z0-9._%+-]+@[A-Z0-9.-]+\\.[A-Z]{2,}", RegexOption.IGNORE_CASE)
+            .findAll(html)
+            .map { it.value.trim() }
+            .firstOrNull { !it.contains("protected", true) }
+            .orEmpty()
     }
 
     private fun parseDashboardUsername(html: String): String {
@@ -3098,35 +3260,31 @@ class MainActivity : Activity() {
         val activePacket = currentPacketsActivePacket.trim()
 
         if (activePacket.isNotBlank() && !activePacket.equals(packet, ignoreCase = true)) {
-            AlertDialog.Builder(this)
-                .setTitle("Nie mozna wykupic pakietu")
-                .setMessage(
-                    "Na tym koncie jest juz aktywny pakiet:\n\n" +
-                        "$activePacket\n\n" +
-                        "Nie mozesz wykupic innego pakietu, dopoki obecny sie nie skonczy. " +
-                        "Jesli chcesz anulowac lub zmienic pakiet, skontaktuj sie z supportem PlusX."
-                )
-                .setPositiveButton("OK", null)
-                .show()
+            showModernMessage(
+                "Nie mozna wykupic pakietu",
+                "Na tym koncie jest juz aktywny pakiet:\n\n" +
+                    "$activePacket\n\n" +
+                    "Nie mozesz wykupic innego pakietu, dopoki obecny sie nie skonczy. " +
+                    "Jesli chcesz anulowac lub zmienic pakiet, skontaktuj sie z supportem PlusX."
+            )
             return
         }
 
-        AlertDialog.Builder(this)
-            .setTitle("Potwierdz zakup")
-            .setMessage(
+        showModernMessage(
+            "Potwierdz zakup",
                 "Czy na pewno kupic wybrany pakiet?\n\n" +
                     "Pakiet: $packet\n" +
                     "Okres: $period\n" +
                     "Cena: $price\n" +
-                    "Uzytkownik: $user"
-            )
-            .setNegativeButton("Anuluj", null)
-            .setPositiveButton("Kup") { _, _ ->
+                    "Uzytkownik: $user",
+            positiveText = "Kup",
+            negativeText = "Anuluj",
+            onPositive = {
                 if (target.isNotBlank()) {
                     openPortalPage(target)
                 }
             }
-            .show()
+        )
     }
 
     private fun parseTelegramNews(json: String): List<PageItem> {
@@ -3510,6 +3668,7 @@ class MainActivity : Activity() {
         email.hint = "Email kontaktowy"
         email.inputType = android.text.InputType.TYPE_TEXT_VARIATION_EMAIL_ADDRESS
         email.setSingleLine(true)
+        styleDialogInput(email)
         form.addView(email, LinearLayout.LayoutParams(-1, -2))
 
         val problem = EditText(this)
@@ -3518,25 +3677,24 @@ class MainActivity : Activity() {
         problem.maxLines = 5
         problem.gravity = Gravity.TOP
         problem.inputType = android.text.InputType.TYPE_CLASS_TEXT or android.text.InputType.TYPE_TEXT_FLAG_MULTI_LINE
+        styleDialogInput(problem)
         form.addView(problem, LinearLayout.LayoutParams(-1, -2).apply { setMargins(0, dp(10), 0, 0) })
 
-        val dialog = AlertDialog.Builder(this)
-            .setTitle(if (advanced) "Diagnostyka zaawansowana" else "Diagnostyka podstawowa")
-            .setMessage(
+        lateinit var dialog: Dialog
+        dialog = showModernMessage(
+            if (advanced) "Diagnostyka zaawansowana" else "Diagnostyka podstawowa",
                 if (advanced) "Zakladka: $section\nPodaj email kontaktowy. Opis mozesz zostawic pusty."
-                else "Podaj email kontaktowy. Opis mozesz zostawic pusty."
-            )
-            .setView(form)
-            .setNegativeButton("Anuluj", null)
-            .setPositiveButton("Przygotuj", null)
-            .show()
-
-        dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener {
+                else "Podaj email kontaktowy. Opis mozesz zostawic pusty.",
+            positiveText = "Przygotuj",
+            negativeText = "Anuluj",
+            contentView = form,
+            dismissOnPositive = false,
+            onPositive = {
                 val contactEmail = email.text.toString().trim()
                 if (!isValidContactEmail(contactEmail)) {
                     email.error = "Email musi miec wiecej niz 3 znaki i zawierac @"
                     Toast.makeText(this, "Podaj poprawny email kontaktowy", Toast.LENGTH_LONG).show()
-                    return@setOnClickListener
+                    return@showModernMessage
                 }
                 val problemText = problem.text.toString().trim().ifBlank { "Nie podano" }
                 if (advanced) {
@@ -3553,17 +3711,14 @@ class MainActivity : Activity() {
                 }
                 dialog.dismiss()
             }
+        )
     }
 
     private fun showAdvancedDiagnosticsChoice() {
-        val labels = arrayOf("Dashboard", "Wiadomosci", "Programy na dzis", "Pakiety", "Reseller Panel", "Linki M3U")
-        AlertDialog.Builder(this)
-            .setTitle("Z czym jest problem?")
-            .setItems(labels) { _, index ->
+        val labels = listOf("Dashboard", "Wiadomosci", "Programy na dzis", "Pakiety", "Reseller Panel", "Linki M3U")
+        showModernOptions("Z czym jest problem?", labels) { index ->
                 showDiagnosticsForm(true, labels[index])
-            }
-            .setNegativeButton("Anuluj", null)
-            .show()
+        }
     }
 
     private fun sendAdvancedDiagnostics(section: String, contactEmail: String, problemText: String) {
@@ -3838,5 +3993,4 @@ class MainActivity : Activity() {
         }
     }
 }
-
 
