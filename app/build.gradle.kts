@@ -23,7 +23,7 @@ fun projectSetting(name: String, defaultValue: String = ""): String =
         ?: defaultValue
 
 fun quoted(value: String): String =
-    "\"${value.replace("\\", "\\\\").replace("\"", "\\\"")}\""
+    "\"${value.trim().replace("\\", "\\\\").replace("\"", "\\\"").replace("\r", "").replace("\n", "")}\""
 
 val signingProperties = Properties().apply {
     val file = rootProject.file("signing.properties")
