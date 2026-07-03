@@ -27,9 +27,9 @@
 <p align="center">
   <a href="https://github.com/Torvinek/PlusX-Mobile/releases/latest"><strong>⬇️ Pobierz najnowsze APK</strong></a>
   ·
-  <a href="#najważniejsze-funkcje">Funkcje</a>
+  <a href="https://tipply.pl/@torvinek"><strong>☕ Postaw kawę</strong></a>
   ·
-  <a href="#co-nowego">Co nowego</a>
+  <a href="#najważniejsze-funkcje">Funkcje</a>
   ·
   <a href="#instalacja">Instalacja</a>
   ·
@@ -87,81 +87,8 @@ Nie dostajesz kolejnego desktopowego panelu wciśniętego na mały ekran. Dostaj
 
 ---
 
-<a id="co-nowego"></a>
-## Co nowego
-
-### Wersja 1.5.3
-
-Wersja **1.5.3** skupia się na historii operacji, poprawnym rozpoznawaniu aktywnych pakietów oraz wygodniejszej obsłudze wielu kont.
-
-#### Historia zakupów i doładowań
-
-- Dodano zakładkę **Historia zakupów**, pobierającą dane z `balance_history.php`.
-- Dodano filtrowanie historii po użytkowniku.
-- Lista użytkowników jest tworzona na podstawie **Reseller Panelu** oraz konta głównego.
-- Naprawiono wykrywanie losowych identyfikatorów operacji jako nazw użytkowników.
-- Dodano rozpoznawanie doładowań konta.
-- Kolejne doładowania są łączone w jedną, czytelną pozycję.
-- Wpis historii może pokazywać:
-  - datę,
-  - kwotę,
-  - użytkownika,
-  - prawdopodobny pakiet.
-- Kwoty są prezentowane w formacie `x.xx EUR`.
-- Poprawiono rozpoznawanie pakietów po cenie z uwzględnieniem możliwych rabatów resellerów.
-- Historia może uzupełniać pozycje informacjami z Reseller Panelu:
-  - notatką,
-  - statusem konta,
-  - aktywnym pakietem,
-  - terminem wygaśnięcia — jeżeli dane są dostępne.
-
-#### Pakiety i status konta
-
-- Naprawiono problem, przez który nieaktywne konto mogło wyglądać jak aktywne w zakładce **Kup pakiet**.
-- Dodano blokadę zakupu innego pakietu, gdy użytkownik ma już aktywny pakiet.
-
-#### Ustawienia i wygląd
-
-- Całe kafelki ustawień są teraz klikalne.
-- Dodano czytelne oznaczenie, że kafelek można otworzyć.
-- Usunięto informację o blokadzie po IP z ustawień.
-- Zmieniono komunikat przy adresie e-mail — jego zmiana wymaga kontaktu z supportem PlusX.
-- Poprawiono przełączanie motywu oraz wykrywanie jasnego i ciemnego trybu systemowego.
-- Zachowano updater aplikacji i zakładkę **O aplikacji**.
-
-### Wersja 1.5.2
-
-#### Dodano
-
-- powiadomienia o nowych wiadomościach PlusX,
-- powiadomienia o dostępnej nowej wersji aplikacji,
-- zakładkę **O aplikacji** w ustawieniach,
-- ręczne sprawdzanie aktualizacji z poziomu aplikacji,
-- pobieranie opisu zmian bezpośrednio z GitHuba,
-- plik SHA-256 do weryfikacji APK przy wydaniu.
-
-#### Poprawiono
-
-- sortowanie w zakładce **Programy na dziś**,
-- ukrywanie wydarzeń, które już się zakończyły,
-- oznaczenie programu trwającego w danym momencie,
-- odświeżanie programów z backendu,
-- wykrywanie timeoutu sesji, gdy saldo nie zostanie znalezione,
-- automatyczny powrót do logowania po wygaśnięciu sesji,
-- komunikat `Zostałeś wylogowany (timeout)`,
-- kodowanie UTF-8 i wyświetlanie polskich znaków.
-
-### Wersja 1.5.1
-
-- Poprawiono sortowanie w zakładce **Programy na dziś**.
-- Najnowsze i najpóźniejsze wydarzenia są wyświetlane wyżej, a starsze niżej.
-- Poprawiono przycisk **Odśwież balans**.
-- Saldo jest pobierane na świeżo, bez używania starego cache.
-- Dodano wykrywanie wygaśniętej sesji.
-- Jeśli saldo nie zostanie znalezione, aplikacja traktuje to jako timeout sesji.
-- Dodano komunikat `Zostałeś wylogowany (timeout)`.
-- Po timeout aplikacja czyści sesję i cookies.
-- Użytkownik jest automatycznie przenoszony do ekranu logowania.
+> [!TIP]
+> Pełna historia zmian wszystkich wersji znajduje się w sekcji [Releases](https://github.com/Torvinek/PlusX-Mobile/releases).
 
 ---
 
