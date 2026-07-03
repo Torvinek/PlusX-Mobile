@@ -5,18 +5,20 @@
 <h1 align="center">PlusX Mobile</h1>
 
 <p align="center">
-  <strong>Nieoficjalna aplikacja Android z natywnym, mobilnym interfejsem dla panelu PlusX.</strong>
+  <strong>Nieoficjalna aplikacja Android z wygodnym, mobilnym interfejsem dla panelu PlusX.</strong>
 </p>
 
 <p align="center">
-  Logowanie, saldo, wiadomości, programy, pakiety, reseller, M3U, historia zakupów i diagnostyka — w jednej aplikacji.
+  Logowanie, saldo, wiadomości, programy, pakiety, reseller, M3U, historia zakupów, aktualizacje i diagnostyka — w jednej aplikacji.
 </p>
 
 <p align="center">
   <a href="https://github.com/Torvinek/PlusX-Mobile/actions/workflows/android-ci.yml">
     <img alt="Android CI" src="https://img.shields.io/github/actions/workflow/status/Torvinek/PlusX-Mobile/android-ci.yml?branch=main&style=for-the-badge&label=Android%20CI">
   </a>
-  <img alt="Wersja 1.5.3" src="https://img.shields.io/badge/wersja-1.5.3-169BD5?style=for-the-badge">
+  <a href="https://github.com/Torvinek/PlusX-Mobile/releases/latest">
+    <img alt="Najnowsza wersja" src="https://img.shields.io/github/v/release/Torvinek/PlusX-Mobile?style=for-the-badge&label=wersja">
+  </a>
   <img alt="Android 9+" src="https://img.shields.io/badge/Android-9%2B-3DDC84?style=for-the-badge&logo=android&logoColor=white">
   <img alt="Kotlin 2.0.21" src="https://img.shields.io/badge/Kotlin-2.0.21-7F52FF?style=for-the-badge&logo=kotlin&logoColor=white">
   <a href="LICENSE">
@@ -27,8 +29,6 @@
 <p align="center">
   <a href="https://github.com/Torvinek/PlusX-Mobile/releases/latest"><strong>⬇️ Pobierz najnowsze APK</strong></a>
   ·
-  <a href="https://tipply.pl/@torvinek"><strong>☕ Postaw kawę</strong></a>
-  ·
   <a href="#najważniejsze-funkcje">Funkcje</a>
   ·
   <a href="#instalacja">Instalacja</a>
@@ -36,6 +36,13 @@
   <a href="#prywatność-i-bezpieczeństwo">Prywatność</a>
   ·
   <a href="#budowanie-ze-źródeł">Budowanie</a>
+  ·
+  <a href="https://tipply.pl/@torvinek">☕ Postaw kawę</a>
+</p>
+
+<p align="center">
+  Jeśli PlusX Mobile Ci się spodobał albo po prostu okazał się przydatny, możesz postawić mi małą kawę.<br>
+  <strong>Dzięki za każde wsparcie ☕</strong>
 </p>
 
 ---
@@ -43,52 +50,45 @@
 > [!IMPORTANT]
 > **PlusX Mobile jest projektem niezależnym i nieoficjalnym.**
 > Nie jest własnością operatora panelu PlusX ani oficjalną aplikacją właściciela usługi.
-> Do działania wymagane jest własne, aktywne konto w panelu [PlusX](https://new.plusx.tv/login.php).
+> Do działania wymagane jest własne, aktywne konto w obsługiwanym panelu.
 
-## Co to właściwie jest?
+## W skrócie
 
-PlusX Mobile to mobilny klient panelu `new.plusx.tv`.
+PlusX Mobile powstał dlatego, że oryginalny panel `new.plusx.tv` został przygotowany głównie z myślą o komputerach i dużych ekranach.
 
-Oryginalny panel został zaprojektowany głównie z myślą o komputerach i dużych ekranach. Na telefonie korzystanie z niego może być niewygodne, dlatego aplikacja pobiera dane z istniejącego panelu i pokazuje je w czytelnym, natywnym interfejsie Androida.
+Aplikacja nie zastępuje panelu i nie tworzy własnego systemu kont. Korzysta z istniejącej strony PlusX, ale prezentuje jej najważniejsze funkcje w układzie dopasowanym do telefonu.
 
-Aplikacja:
+### Jak to działa po ludzku?
 
-1. otwiera oryginalne logowanie PlusX w WebView,
-2. pozwala normalnie wpisać dane i ręcznie przejść reCAPTCHA,
-3. korzysta z aktywnej sesji panelu,
-4. pobiera potrzebne strony przez HTTPS,
-5. lokalnie porządkuje dane,
-6. wyświetla je w mobilnych kartach, listach i przyciskach.
+1. Uruchamiasz PlusX Mobile.
+2. Logujesz się na **oryginalnej stronie PlusX** otwartej w WebView.
+3. reCAPTCHA rozwiązujesz normalnie i ręcznie.
+4. Aplikacja wykorzystuje aktywną sesję do pobierania potrzebnych stron panelu.
+5. Dane są porządkowane lokalnie i wyświetlane w czytelnych kartach, listach oraz przyciskach.
+6. Operacje wrażliwe, takie jak płatności, zmiana hasła, 2FA i końcowe potwierdzenie zakupu, pozostają na oryginalnej stronie.
 
-Wrażliwe operacje, takie jak płatności, zmiana hasła, 2FA i końcowe potwierdzenie zakupu, pozostają na oryginalnej stronie PlusX.
-
-### Po ludzku
-
-Nie dostajesz kolejnego desktopowego panelu wciśniętego na mały ekran. Dostajesz normalną aplikację na telefon, która korzysta z istniejącego konta PlusX i upraszcza obsługę najważniejszych funkcji.
+Pełna historia zmian poszczególnych wersji znajduje się w sekcji [Releases](https://github.com/Torvinek/PlusX-Mobile/releases).
 
 ---
 
+<a id="najważniejsze-funkcje"></a>
 ## Najważniejsze funkcje
 
 | Obszar | Co potrafi aplikacja |
 |---|---|
-| **Logowanie** | Oryginalne logowanie przez WebView, ręczna reCAPTCHA i obsługa wygaśnięcia sesji. |
-| **Panel główny** | Saldo, szybkie odświeżanie i skróty do najważniejszych funkcji. |
+| **Logowanie** | Oryginalne logowanie przez WebView, ręczna reCAPTCHA oraz obsługa wygaśnięcia sesji. |
+| **Panel główny** | Saldo, odświeżanie danych i szybki dostęp do najważniejszych zakładek. |
 | **Wiadomości** | Wiadomości z panelu PlusX oraz komunikaty pobierane z backendu Torvinek. |
-| **Programy na dziś** | Wydarzenia EPG, sortowanie, odświeżanie, ukrywanie zakończonych pozycji i oznaczenie programu trwającego teraz. |
-| **Historia zakupów** | Dane z `balance_history.php`, filtrowanie po użytkowniku, łączenie doładowań i rozpoznawanie prawdopodobnego pakietu. |
-| **Pakiety** | Lista pakietów i cen, wybór użytkownika oraz potwierdzenie przed przejściem do zakupu. |
-| **Reseller Panel** | Lista kont, statusy, daty wygaśnięcia, notatki, paginacja i szybkie przejście do pakietów lub M3U. |
+| **Programy na dziś** | Aktualne wydarzenia EPG, sortowanie, odświeżanie, ukrywanie zakończonych pozycji i oznaczenie programu trwającego teraz. |
+| **Historia zakupów** | Historia z `balance_history.php`, filtrowanie po użytkowniku, rozpoznawanie doładowań i prawdopodobnych pakietów. |
+| **Pakiety** | Lista dostępnych pakietów i cen, wybór użytkownika oraz potwierdzenie przed przejściem do zakupu. |
+| **Reseller Panel** | Konta, statusy, daty wygaśnięcia, notatki, paginacja i szybkie przejście do pakietów lub M3U. |
 | **Linki M3U** | User Key, TiviMate, Smart IPTV, SS IPTV, EPG, wybór użytkownika, kopiowanie i pobieranie. |
-| **Doładowanie konta** | Oryginalny ekran płatności otwierany w WebView — bez własnego formularza kart płatniczych. |
-| **Ustawienia** | Motyw jasny/ciemny, dane konta, 2FA, zmiana hasła, diagnostyka, informacje o aplikacji i aktualizacjach. |
-| **Powiadomienia** | Informacje o nowych wiadomościach PlusX oraz dostępnej aktualizacji aplikacji. |
+| **Doładowanie konta** | Oryginalny ekran płatności w WebView — bez własnego formularza kart płatniczych. |
+| **Ustawienia** | Motyw jasny/ciemny, dane konta, 2FA, zmiana hasła, diagnostyka i zakładka „O aplikacji”. |
+| **Aktualizacje** | Sprawdzanie nowej wersji, opis wydania z GitHuba, pobieranie APK i uruchamianie systemowego instalatora. |
+| **Powiadomienia** | Informacje o nowych wiadomościach oraz dostępnej aktualizacji. |
 | **Diagnostyka** | Ręcznie uruchamiany raport podstawowy lub zaawansowany z automatycznym oczyszczaniem danych wrażliwych. |
-
----
-
-> [!TIP]
-> Pełna historia zmian wszystkich wersji znajduje się w sekcji [Releases](https://github.com/Torvinek/PlusX-Mobile/releases).
 
 ---
 
@@ -108,24 +108,31 @@ Użytkownik
 │                            M3U, profil i historia
 │
 └── HTTPS ─────────────────► backend.torvinek.pl
-                             wiadomości, EPG i ręcznie
+                             wiadomości, EPG oraz ręcznie
                              wysłana diagnostyka
 ```
 
 ### Najważniejsze zasady sieciowe
 
-- Cookies panelu są używane wyłącznie wobec dokładnego hosta `new.plusx.tv`.
+- Cookies panelu są używane wyłącznie podczas komunikacji z `new.plusx.tv`.
 - Cookies PlusX nie są wysyłane do backendu Torvinek.
-- Aplikacja akceptuje wyłącznie połączenia HTTPS.
+- Komunikacja aplikacji odbywa się przez HTTPS.
 - Adresy podszywające się pod właściwą domenę, np. `new.plusx.tv.example.org`, są odrzucane.
 - Token backendu jest przekazywany podczas budowania i nie jest publikowany w repozytorium.
 - Token aplikacyjny backendu powinien mieć wyłącznie minimalne, nieadministracyjne uprawnienia.
 
-Szczegóły znajdują się w [NETWORK.md](NETWORK.md) i [BACKEND_SECURITY.md](BACKEND_SECURITY.md).
+Więcej informacji: [NETWORK.md](NETWORK.md) oraz [BACKEND_SECURITY.md](BACKEND_SECURITY.md).
 
 ---
 
+<a id="prywatność-i-bezpieczeństwo"></a>
 ## Prywatność i bezpieczeństwo
+
+### Logowanie
+
+Login, hasło i reCAPTCHA są obsługiwane na oryginalnej stronie `new.plusx.tv` otwartej w WebView.
+
+PlusX Mobile nie tworzy osobnego formularza udającego stronę logowania i nie wysyła danych logowania do backendu Torvinek.
 
 ### Czego aplikacja nie wysyła do backendu Torvinek?
 
@@ -137,10 +144,6 @@ Szczegóły znajdują się w [NETWORK.md](NETWORK.md) i [BACKEND_SECURITY.md](BA
 - zawartości formularza karty,
 - pełnej sesji panelu.
 
-### Logowanie
-
-Login, hasło oraz reCAPTCHA są obsługiwane na oryginalnej stronie `new.plusx.tv`, otwartej w WebView. Aplikacja nie tworzy osobnego formularza udającego logowanie PlusX.
-
 ### Płatności
 
 Płatności pozostają na stronie PlusX. Aplikacja nie implementuje własnego systemu płatności i nie przechwytuje danych karty.
@@ -149,16 +152,16 @@ Płatności pozostają na stronie PlusX. Aplikacja nie implementuje własnego sy
 
 | Uprawnienie | Zastosowanie |
 |---|---|
-| `INTERNET` | Logowanie, pobieranie danych z `new.plusx.tv`, wiadomości, EPG, sprawdzanie aktualizacji i ręcznie wysyłana diagnostyka. |
-| `POST_NOTIFICATIONS` | Wyświetlanie własnych powiadomień o nowych wiadomościach PlusX i dostępnej aktualizacji. |
+| `INTERNET` | Logowanie, pobieranie danych z panelu, wiadomości, EPG, aktualizacje i ręcznie wysyłana diagnostyka. |
+| `POST_NOTIFICATIONS` | Wyświetlanie własnych powiadomień o nowych wiadomościach i dostępnej aktualizacji. |
 
-Na Androidzie 13 i nowszym system prosi użytkownika o zgodę na wyświetlanie powiadomień.
+Na Androidzie 13 i nowszym system może poprosić użytkownika o zgodę na wyświetlanie powiadomień.
 
-Brak zgody **nie blokuje działania aplikacji**. Wyłączone będą tylko komunikaty wyświetlane poza aplikacją.
+Brak zgody **nie blokuje działania aplikacji**. Wyłączone będą jedynie komunikaty pojawiające się poza aplikacją.
 
-`POST_NOTIFICATIONS` nie daje PlusX Mobile dostępu do cudzych powiadomień ani ich treści. Pozwala jedynie wyświetlać własne komunikaty systemowe.
+`POST_NOTIFICATIONS` nie daje aplikacji dostępu do cudzych powiadomień ani ich treści. Pozwala wyłącznie wyświetlać własne komunikaty systemowe.
 
-Aplikacja nie żąda dostępu do:
+PlusX Mobile nie żąda dostępu do:
 
 - kontaktów,
 - SMS-ów,
@@ -167,23 +170,24 @@ Aplikacja nie żąda dostępu do:
 - lokalizacji,
 - historii połączeń.
 
-Więcej: [PRIVACY.md](PRIVACY.md) i [SECURITY.md](SECURITY.md).
+Szczegóły: [PRIVACY.md](PRIVACY.md) oraz [SECURITY.md](SECURITY.md).
 
 ---
 
 ## Diagnostyka
 
-Diagnostyka nie jest wysyłana automatycznie przy każdym błędzie. Użytkownik uruchamia ją ręcznie w ustawieniach aplikacji.
+Diagnostyka nie jest wysyłana automatycznie przy każdym błędzie. Raport jest przesyłany dopiero po wejściu do odpowiedniej zakładki, wypełnieniu formularza i zatwierdzeniu wysyłki.
 
 ### Diagnostyka podstawowa może zawierać
 
-- e-mail kontaktowy wpisany przez użytkownika,
+- adres e-mail kontaktowy podany przez użytkownika,
 - opis problemu,
 - datę i godzinę,
 - wersję aplikacji,
 - model urządzenia,
+- producenta telefonu,
 - wersję Androida i SDK,
-- rozdzielczość, orientację i gęstość ekranu,
+- rozdzielczość, orientację oraz gęstość ekranu,
 - język systemu,
 - nazwę aktualnego ekranu,
 - wybrany motyw,
@@ -191,9 +195,9 @@ Diagnostyka nie jest wysyłana automatycznie przy każdym błędzie. Użytkownik
 
 ### Diagnostyka zaawansowana
 
-Może dołączyć lokalny snapshot danych potrzebnych do zdiagnozowania wybranej sekcji.
+Może dołączyć lokalny snapshot danych potrzebnych do sprawdzenia wybranej funkcji.
 
-Przed wysłaniem aplikacja próbuje usunąć między innymi:
+Przed wysłaniem aplikacja próbuje automatycznie usunąć między innymi:
 
 - parametry sesji,
 - nagłówki Bearer,
@@ -216,11 +220,11 @@ Aplikacja może informować o:
 - dostępnej nowej wersji,
 - opisie zmian pobranym z GitHuba.
 
-Aktualizację można sprawdzić ręcznie w zakładce **O aplikacji**.
+W zakładce **O aplikacji** można ręcznie sprawdzić dostępność aktualizacji.
 
-Aby zainstalować aktualizację bezpośrednio z aplikacji, Android może poprosić o zezwolenie PlusX Mobile na instalowanie aplikacji z tego źródła. Jest to osobne ustawienie systemowe i można je później wyłączyć.
+Aby zainstalować pobrane APK bezpośrednio z aplikacji, Android może poprosić o zezwolenie PlusX Mobile na instalowanie aplikacji z tego źródła. Zgodę można później wyłączyć w ustawieniach systemowych.
 
-Aktualizację można także pobrać ręcznie z sekcji [Releases](https://github.com/Torvinek/PlusX-Mobile/releases).
+Aktualizację można również pobrać ręcznie z sekcji [Releases](https://github.com/Torvinek/PlusX-Mobile/releases).
 
 ---
 
@@ -230,55 +234,57 @@ Aktualizację można także pobrać ręcznie z sekcji [Releases](https://github.
 ### Wymagania
 
 - Android 9 lub nowszy,
-- własne konto w panelu [PlusX](https://new.plusx.tv/login.php),
+- własne konto w panelu PlusX,
 - połączenie z internetem.
 
-### Krok po kroku
+### Najprostsza instalacja
 
 1. Otwórz [najnowsze wydanie](https://github.com/Torvinek/PlusX-Mobile/releases/latest).
 2. Rozwiń sekcję **Assets**.
-3. Pobierz plik APK.
+3. Pobierz plik `PlusXMobile-Release-...apk`.
 4. Otwórz pobrany plik na telefonie.
-5. Jeśli Android poprosi o zgodę, zezwól przeglądarce lub menedżerowi plików na instalowanie aplikacji z tego źródła.
+5. Jeżeli Android poprosi o zgodę, zezwól przeglądarce lub menedżerowi plików na instalowanie aplikacji z tego źródła.
 6. Zainstaluj PlusX Mobile.
 7. Uruchom aplikację i zaloguj się na oryginalnej stronie panelu.
 
 > [!TIP]
-> Ostrzeżenie o aplikacji instalowanej spoza Google Play nie oznacza automatycznie wykrycia wirusa. Android może pokazywać taki komunikat dla nowych lub mało znanych aplikacji APK instalowanych ręcznie.
+> Ostrzeżenie o aplikacji instalowanej spoza Google Play nie oznacza automatycznie wykrycia wirusa. Android może wyświetlać takie ostrzeżenie w przypadku nowych lub mało znanych aplikacji APK instalowanych ręcznie.
 
 ---
 
 ## Weryfikacja pobranego APK
 
-Każde oficjalne wydanie może zawierać plik z sumą SHA-256. Pozwala on sprawdzić, czy APK nie zostało uszkodzone lub podmienione po pobraniu.
+Oficjalne wydanie może zawierać plik `.sha256`. Pozwala on sprawdzić, czy APK nie zostało uszkodzone albo podmienione po pobraniu.
 
 ### Windows PowerShell
 
 ```powershell
-Get-FileHash -Algorithm SHA256 .\PlusX-Mobile-v1.5.3.apk
+Get-FileHash -Algorithm SHA256 .\PlusXMobile-Release-v1.5.4.apk
 ```
 
 ### Linux
 
 ```bash
-sha256sum PlusX-Mobile-v1.5.3.apk
+sha256sum PlusXMobile-Release-v1.5.4.apk
 ```
 
-Porównaj wynik z plikiem `.sha256` dodanym do tego samego wydania.
+Porównaj otrzymany wynik z zawartością pliku `.sha256` dodanego do tego samego wydania.
 
 ---
 
 <a id="budowanie-ze-źródeł"></a>
 ## Budowanie ze źródeł
 
-Kod jest publicznie widoczny w celu przejrzystości, audytu, nauki i lokalnego testowania. Projekt jest **source-available**, a nie open source w znaczeniu licencji OSI.
+Kod projektu jest publicznie widoczny w celu przejrzystości, audytu, nauki oraz lokalnego testowania.
+
+Projekt jest **source-available**, a nie open source w znaczeniu licencji OSI.
 
 ### Wymagania techniczne
 
 - JDK 17,
 - Android SDK 35,
 - Gradle Wrapper dołączony do repozytorium,
-- internet podczas pierwszego pobierania zależności.
+- połączenie z internetem podczas pierwszego pobierania zależności.
 
 ### Build debug
 
@@ -301,6 +307,9 @@ app/build/outputs/apk/debug/app-debug.apk
 ```
 
 Funkcje korzystające z prywatnego backendu wymagają lokalnej konfiguracji tokenu aplikacyjnego. Szczegóły znajdują się w [BUILDING.md](BUILDING.md).
+
+> [!WARNING]
+> Nie publikuj plików `local.properties`, `signing.properties`, keystore, haseł ani tokenów backendu.
 
 ---
 
@@ -346,27 +355,28 @@ app/
 
 ## Ograniczenia
 
-- PlusX nie udostępnia oficjalnego API używanego przez ten projekt.
+- PlusX nie udostępnia oficjalnego API wykorzystywanego przez ten projekt.
 - Część danych jest pobierana przez parsowanie HTML.
-- Zmiana struktury strony może czasowo zepsuć parser konkretnej zakładki.
+- Zmiana struktury strony może tymczasowo zepsuć parser konkretnej zakładki.
 - Logowanie, reCAPTCHA, płatności, 2FA i zmiana hasła pozostają w WebView.
-- Niektóre funkcje zależą od dostępności `new.plusx.tv` lub backendu Torvinek.
-- Aplikacja nie gwarantuje działania z każdym typem konta ani z każdą przyszłą wersją panelu.
+- Niektóre funkcje zależą od dostępności `new.plusx.tv` albo backendu Torvinek.
+- Aplikacja może wymagać aktualizacji po większych zmianach w panelu.
+- Projekt nie gwarantuje działania z każdym typem konta ani z każdą przyszłą wersją strony.
 
 ---
 
 ## Zgłaszanie problemów
 
-Najlepiej zgłosić problem bezpośrednio z aplikacji:
+Najwygodniej wysłać zgłoszenie bezpośrednio z aplikacji:
 
 1. Wejdź w **Ustawienia → Diagnostyka**.
 2. Wybierz diagnostykę podstawową albo zaawansowaną.
-3. Opisz krótko, co nie działa i na jakim ekranie wystąpił problem.
+3. Opisz krótko problem i ekran, na którym wystąpił.
 4. Wyślij raport.
 
-Możesz też utworzyć zgłoszenie w zakładce [Issues](https://github.com/Torvinek/PlusX-Mobile/issues).
+Możesz również utworzyć zgłoszenie w zakładce [Issues](https://github.com/Torvinek/PlusX-Mobile/issues).
 
-Nie publikuj w zgłoszeniach:
+Nie publikuj w zgłoszeniu:
 
 - loginu,
 - hasła,
@@ -394,7 +404,7 @@ Nie publikuj w zgłoszeniach:
 
 Główna część projektu jest udostępniana na warunkach [PlusX Mobile Source-Available License](LICENSE).
 
-Kod można przeglądać, analizować i lokalnie budować wyłącznie w granicach określonych w licencji.
+Kod można przeglądać, analizować oraz lokalnie budować wyłącznie w granicach określonych w licencji.
 
 Bez pisemnej zgody autora zabronione jest między innymi:
 
@@ -402,12 +412,26 @@ Bez pisemnej zgody autora zabronione jest między innymi:
 - tworzenie i publikowanie mirrorów,
 - redystrybucja kodu lub APK,
 - publikowanie własnych albo zmodyfikowanych wersji aplikacji,
-- używanie projektu komercyjnie,
+- wykorzystywanie projektu komercyjnie,
 - usuwanie informacji o autorze,
 - podszywanie się pod oficjalne wydanie,
 - dodawanie złośliwego kodu i rozpowszechnianie go jako PlusX Mobile.
 
 Plik [LICENSE-MIT](LICENSE-MIT) dotyczy wyłącznie elementów wyraźnie oznaczonych jako objęte licencją MIT. Nie zastępuje głównej licencji projektu.
+
+---
+
+## Wesprzyj projekt
+
+Jeśli PlusX Mobile Ci się spodobał albo ułatwił korzystanie z panelu, możesz postawić mi małą kawę.
+
+<p align="center">
+  <a href="https://tipply.pl/@torvinek"><strong>☕ Postaw kawę na Tipply</strong></a>
+</p>
+
+<p align="center">
+  Każde wsparcie pomaga mi dalej rozwijać i testować aplikację. Dzięki!
+</p>
 
 ---
 
