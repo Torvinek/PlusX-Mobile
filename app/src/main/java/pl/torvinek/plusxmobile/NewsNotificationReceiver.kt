@@ -1,4 +1,4 @@
-package pl.torvinek.plusxmobile
+﻿package pl.torvinek.plusxmobile
 
 import android.Manifest
 import android.app.AlarmManager
@@ -14,20 +14,23 @@ import android.os.Build
 import org.json.JSONObject
 import java.net.HttpURLConnection
 import java.net.URI
+import java.net.URL
 
 class NewsNotificationReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent?) {
+        val appContext = context.applicationContext
         if (intent?.action == Intent.ACTION_BOOT_COMPLETED) {
-            schedule(context)
+            schedule(appContext)
             return
         }
 
         val pendingResult = goAsync()
         Thread {
             runCatching {
-                checkLatestNews(context.applicationContext)
-                checkLatestRelease(context.applicationContext)
+                checkLatestNews(appContext)
+                checkLatestRelease(appContext)
             }
+            schedule(appContext)
             pendingResult.finish()
         }.start()
     }
@@ -39,15 +42,19 @@ class NewsNotificationReceiver : BroadcastReceiver() {
         val messages = root.optJSONArray("messages") ?: return
         if (messages.length() == 0) return
 
-        val latest = messages.optJSONObject(messages.length() - 1) ?: messages.optJSONObject(0) ?: return
-        val latestId = latest.optLong("id", 0L)
+        var latestId = 0L
+        for (index in 0 until messages.length()) {
+            val id = messages.optJSONObject(index)?.optLong("id", 0L) ?: 0L
+            if (id > latestId) latestId = id
+        }
         if (latestId <= 0L) return
 
         val previousId = prefs.getLong(KEY_LAST_NEWS_ID, 0L)
         prefs.edit().putLong(KEY_LAST_NEWS_ID, latestId).apply()
 
-        if (previousId == 0L || latestId == previousId) return
-        showNewsNotification(context)
+        if (previousId != 0L && latestId > previousId) {
+            showNewsNotification(context)
+        }
     }
 
     private fun checkLatestRelease(context: Context) {
@@ -63,16 +70,17 @@ class NewsNotificationReceiver : BroadcastReceiver() {
 
         val previousTag = prefs.getString(KEY_LAST_RELEASE_TAG, "").orEmpty()
         prefs.edit().putString(KEY_LAST_RELEASE_TAG, latestTag).apply()
-        if (previousTag.isBlank() || previousTag == latestTag) return
-        showUpdateNotification(context)
+        if (previousTag != latestTag) {
+            showUpdateNotification(context)
+        }
     }
 
     private fun showNewsNotification(context: Context) {
         showNotification(
             context,
             3001,
-            "Nowa wiadomość PlusX",
-            "Zaloguj się do aplikacji żeby zobaczyć"
+            "Nowa wiadomoĹ›Ä‡ PlusX",
+            "Zaloguj siÄ™ do aplikacji ĹĽeby zobaczyÄ‡"
         )
     }
 
@@ -109,7 +117,7 @@ class NewsNotificationReceiver : BroadcastReceiver() {
             .setContentText(text)
             .setContentIntent(pendingIntent)
             .setAutoCancel(true)
-            .setPriority(Notification.PRIORITY_DEFAULT)
+            .setPriority(Notification.PRIORITY_HIGH)
             .build()
 
         val manager = context.getSystemService(NotificationManager::class.java)
@@ -166,12 +174,20 @@ class NewsNotificationReceiver : BroadcastReceiver() {
         private const val PREFS = "plusx_news_notifications"
         private const val KEY_LAST_NEWS_ID = "last_news_id"
         private const val KEY_LAST_RELEASE_TAG = "last_release_tag"
-        private const val CHANNEL_ID = "plusx_news"
+        private const val CHANNEL_ID = "plusx_alerts_v2"
         private const val ALARM_ACTION = "pl.torvinek.plusxmobile.CHECK_NEWS"
         private const val INTERVAL_MS = 15L * 60L * 1000L
         private val NEWS_URL = "${AppConfig.backendBaseUrl}/telegram/plusx/wiadomosci?limit=1"
         private val BACKEND_TOKEN = AppConfig.backendToken
         private const val GITHUB_RELEASE_URL = "https://api.github.com/repos/Torvinek/PlusX-Mobile/releases/latest"
+
+        fun checkNow(context: Context) {
+            ensureChannel(context)
+            val intent = Intent(context, NewsNotificationReceiver::class.java).apply {
+                action = ALARM_ACTION
+            }
+            context.sendBroadcast(intent)
+        }
 
         fun schedule(context: Context) {
             ensureChannel(context)
@@ -185,24 +201,32 @@ class NewsNotificationReceiver : BroadcastReceiver() {
                 PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
             )
             val alarmManager = context.getSystemService(AlarmManager::class.java)
-            alarmManager.setInexactRepeating(
-                AlarmManager.RTC_WAKEUP,
-                System.currentTimeMillis() + 60_000L,
-                INTERVAL_MS,
-                pendingIntent
-            )
+            alarmManager.cancel(pendingIntent)
+            val triggerAt = System.currentTimeMillis() + INTERVAL_MS
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                alarmManager.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, triggerAt, pendingIntent)
+            } else {
+                alarmManager.set(AlarmManager.RTC_WAKEUP, triggerAt, pendingIntent)
+            }
         }
 
         fun ensureChannel(context: Context) {
             val manager = context.getSystemService(NotificationManager::class.java)
             val channel = NotificationChannel(
                 CHANNEL_ID,
-                "Wiadomości PlusX",
-                NotificationManager.IMPORTANCE_DEFAULT
+                "WiadomoĹ›ci PlusX",
+                NotificationManager.IMPORTANCE_HIGH
             ).apply {
-                description = "Powiadomienia o nowych wiadomościach PlusX"
+                description = "Powiadomienia o nowych wiadomoĹ›ciach PlusX"
             }
             manager.createNotificationChannel(channel)
         }
+
+        private fun hidden(vararg values: Int): String {
+            val key = 0x5A
+            return values.map { (it xor key).toChar() }.joinToString("")
+        }
     }
 }
+
+

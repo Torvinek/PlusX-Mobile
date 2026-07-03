@@ -1,4 +1,4 @@
-package pl.torvinek.plusxmobile
+﻿package pl.torvinek.plusxmobile
 
 import android.annotation.SuppressLint
 import android.Manifest
@@ -48,10 +48,10 @@ import org.json.JSONTokener
 import java.io.File
 import java.io.FileOutputStream
 import java.net.HttpURLConnection
-import java.net.URI
 import java.net.URL
 import java.net.URLDecoder
 import java.net.URLEncoder
+import java.security.MessageDigest
 import java.text.SimpleDateFormat
 import java.util.Locale
 import java.util.TimeZone
@@ -65,7 +65,6 @@ class MainActivity : Activity() {
     private val diagnosticsSubmitUrl = "${AppConfig.backendBaseUrl}/telegram/plusx/diagnostics"
     private val githubLatestReleaseUrl = "https://api.github.com/repos/Torvinek/PlusX-Mobile/releases/latest"
     private val telegramBackendToken = AppConfig.backendToken
-
     private lateinit var root: FrameLayout
     private var cookieHeader: String = ""
     private var lastDashboardHtml: String = ""
@@ -75,6 +74,7 @@ class MainActivity : Activity() {
     private var currentWebView: WebView? = null
     private var currentScreen = "login"
     private var lastBackPress = 0L
+    private var supportPopupShownThisSession = false
     private var lastSettingsItems: List<PageItem> = emptyList()
     private var pendingM3uUser: String = ""
     private var m3uDownloadChoices: Map<String, List<M3uHtmlParser.PlaylistLink>> = emptyMap()
@@ -97,6 +97,7 @@ class MainActivity : Activity() {
     private val billingDetails = mutableMapOf<String, String>()
     private var loginTransitionOverlay: View? = null
     private var pendingUpdateApk: File? = null
+    private var startupUpdateDialogShown = false
     private val polishMonths = mapOf(
         "stycznia" to "01",
         "lutego" to "02",
@@ -146,6 +147,11 @@ class MainActivity : Activity() {
         "12" to "Grudzien"
     )
 
+    private fun hidden(vararg values: Int): String {
+        val key = 0x5A
+        return values.map { (it xor key).toChar() }.joinToString("")
+    }
+
     private data class PageItem(
         val title: String,
         val subtitle: String = "",
@@ -158,6 +164,14 @@ class MainActivity : Activity() {
         val badgeText: String = "",
         val badgeImageRes: Int = 0,
         val cornerText: String = ""
+    )
+
+    private data class StartupUpdateInfo(
+        val tag: String,
+        val apkUrl: String,
+        val shaUrl: String,
+        val releaseName: String,
+        val releaseBody: String
     )
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -188,6 +202,20 @@ class MainActivity : Activity() {
             checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
         ) {
             requestPermissions(arrayOf(Manifest.permission.POST_NOTIFICATIONS), 501)
+        } else {
+            NewsNotificationReceiver.checkNow(this)
+        }
+        checkStartupUpdatePrompt()
+    }
+
+    override fun onRequestPermissionsResult(
+        requestCode: Int,
+        permissions: Array<out String>,
+        grantResults: IntArray
+    ) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        if (requestCode == 501 && grantResults.firstOrNull() == PackageManager.PERMISSION_GRANTED) {
+            NewsNotificationReceiver.checkNow(this)
         }
     }
 
@@ -212,7 +240,7 @@ class MainActivity : Activity() {
         webView.webViewClient = object : WebViewClient() {
             override fun onPageStarted(view: WebView, url: String, favicon: android.graphics.Bitmap?) {
                 val uri = Uri.parse(sanitizePortalUrl(Uri.parse(url)))
-                if (AppConfig.isPortalUri(uri) && uri.path?.endsWith("/login.php") != true) {
+                if (uri.host == "new.plusx.tv" && uri.path?.endsWith("/login.php") != true) {
                     showLoginTransitionOverlay()
                     scheduleDashboardPoll(view)
                 }
@@ -237,10 +265,10 @@ class MainActivity : Activity() {
                 }
 
                 val uri = Uri.parse(cleanUrl)
-                if (AppConfig.isPortalUri(uri) && uri.path?.endsWith("/index.php") == true) {
+                if (uri.host == "new.plusx.tv" && uri.path?.endsWith("/index.php") == true) {
                     showLoginTransitionOverlay()
                     extractDashboardFromWebView(view)
-                } else if (AppConfig.isPortalUri(uri)) {
+                } else if (uri.host == "new.plusx.tv") {
                     detectDashboardFromWebView(view)
                 } else {
                     hideLoginTransitionOverlay()
@@ -293,11 +321,11 @@ class MainActivity : Activity() {
     }
 
     private fun sanitizePortalUrl(uri: Uri): String {
-        if (!AppConfig.isPortalUri(uri)) return uri.toString()
+        if (uri.host != "new.plusx.tv") return uri.toString()
 
         val builder = uri.buildUpon()
             .scheme("https")
-            .authority(AppConfig.portalAuthority)
+            .authority("new.plusx.tv")
             .clearQuery()
 
         if (uri.path.orEmpty() == "/") {
@@ -479,6 +507,7 @@ class MainActivity : Activity() {
 
         root.addView(scroll)
         animateScreen(scroll)
+        rememberDashboardAndMaybeShowSupport()
     }
 
     private fun balanceCard(balance: String): View {
@@ -933,14 +962,32 @@ class MainActivity : Activity() {
     }
 
     private fun copyrightFooter(): View {
+        val wrap = LinearLayout(this)
+        wrap.orientation = LinearLayout.VERTICAL
+        wrap.gravity = Gravity.CENTER
+
+        if (currentScreen == "dashboard") {
+            val support = Button(this)
+            support.text = "\u2615 Postaw mi kaw\u0119"
+            support.textSize = 12f
+            support.setAllCaps(false)
+            support.setTextColor(if (darkMode) Color.rgb(125, 211, 252) else Color.rgb(14, 116, 144))
+            support.background = rounded(Color.TRANSPARENT, 18, strokeColor())
+            support.setOnClickListener { openSupportPage() }
+            wrap.addView(support, LinearLayout.LayoutParams(-2, dp(38)).apply {
+                setMargins(0, dp(4), 0, dp(8))
+            })
+        }
+
         val footer = TextView(this)
-        footer.text = "© Torvinek 2026"
+        footer.text = "\u00a9 Torvinek 2026"
         footer.textSize = 12f
         footer.gravity = Gravity.CENTER
         footer.setTextColor(mutedColor())
-        footer.setPadding(0, dp(12), 0, dp(28))
-        footer.layoutParams = LinearLayout.LayoutParams(-1, -2)
-        return footer
+        footer.setPadding(0, dp(6), 0, dp(24))
+        wrap.addView(footer, LinearLayout.LayoutParams(-1, -2))
+        wrap.layoutParams = LinearLayout.LayoutParams(-1, -2)
+        return wrap
     }
 
     private fun infoCard(title: String, subtitle: String, value: String): View {
@@ -1508,6 +1555,181 @@ class MainActivity : Activity() {
         return items
     }
 
+    private fun checkStartupUpdatePrompt() {
+        if (startupUpdateDialogShown) return
+        Thread {
+            val info = runCatching {
+                val json = getJson(githubLatestReleaseUrl, "")
+                parseStartupUpdateInfo(json)
+            }.getOrNull() ?: return@Thread
+
+            runOnUiThread {
+                if (!isFinishing && !isDestroyed && !startupUpdateDialogShown) {
+                    startupUpdateDialogShown = true
+                    showStartupUpdateDialog(info)
+                }
+            }
+        }.start()
+    }
+
+    private fun parseStartupUpdateInfo(json: String): StartupUpdateInfo? {
+        val root = JSONObject(json)
+        val tag = root.optString("tag_name").ifBlank { root.optString("name") }.trim()
+        if (tag.isBlank()) return null
+        if (!isRemoteVersionNewer(tag, appVersionName().substringBefore(" "))) return null
+        val apkUrl = releaseApkUrl(root)
+        if (apkUrl.isBlank()) return null
+        val shaUrl = releaseSha256Url(root, apkUrl)
+        val releaseName = root.optString("name").ifBlank { tag }
+        val releaseBody = root.optString("body").cleanMarkdownForApp()
+        return StartupUpdateInfo(tag, apkUrl, shaUrl, releaseName, releaseBody)
+    }
+
+    private fun showStartupUpdateDialog(info: StartupUpdateInfo) {
+        val dialog = Dialog(this)
+        val card = LinearLayout(this)
+        card.orientation = LinearLayout.VERTICAL
+        card.setPadding(dp(24), dp(22), dp(24), dp(20))
+        card.background = rounded(cardColor(), 24, strokeColor())
+
+        val icon = TextView(this)
+        icon.text = "\u2b07"
+        icon.textSize = 28f
+        icon.gravity = Gravity.CENTER
+        icon.setTextColor(Color.WHITE)
+        icon.background = rounded(Color.rgb(14, 165, 180), 18, 0)
+        card.addView(icon, LinearLayout.LayoutParams(dp(52), dp(52)).apply { gravity = Gravity.CENTER_HORIZONTAL })
+
+        val title = TextView(this)
+        title.text = "Dost\u0119pna aktualizacja"
+        title.textSize = 21f
+        title.setTypeface(null, 1)
+        title.gravity = Gravity.CENTER
+        title.setTextColor(textColor())
+        title.setPadding(0, dp(14), 0, 0)
+        card.addView(title)
+
+        val chip = TextView(this)
+        chip.text = "PlusX Mobile ${info.tag}"
+        chip.textSize = 13f
+        chip.gravity = Gravity.CENTER
+        chip.setTextColor(Color.WHITE)
+        chip.setPadding(dp(10), dp(5), dp(10), dp(5))
+        chip.background = rounded(Color.rgb(14, 165, 180), 12, 0)
+        card.addView(chip, LinearLayout.LayoutParams(-2, -2).apply {
+            gravity = Gravity.CENTER_HORIZONTAL
+            setMargins(0, dp(10), 0, dp(8))
+        })
+
+        val body = TextView(this)
+        body.text = "Dost\u0119pna jest nowsza wersja aplikacji. Czy chcesz j\u0105 teraz pobra\u0107 i zainstalowa\u0107?"
+        body.textSize = 14f
+        body.gravity = Gravity.CENTER
+        body.setTextColor(textColor())
+        body.setLineSpacing(dp(2).toFloat(), 1f)
+        card.addView(body)
+
+        val changes = TextView(this)
+        changes.text = info.releaseBody.ifBlank { "Brak opisu zmian." }
+        changes.textSize = 13f
+        changes.setTextColor(textColor())
+        changes.setPadding(dp(12), dp(10), dp(12), dp(10))
+        changes.background = rounded(if (darkMode) Color.rgb(15, 23, 42) else Color.rgb(241, 245, 249), 12, strokeColor())
+        changes.visibility = View.GONE
+
+        val progress = ProgressBar(this)
+        progress.visibility = View.GONE
+
+        val status = TextView(this)
+        status.textSize = 13f
+        status.gravity = Gravity.CENTER
+        status.setTextColor(mutedColor())
+        status.setPadding(0, dp(10), 0, 0)
+        status.visibility = View.GONE
+
+        val row = LinearLayout(this)
+        row.orientation = LinearLayout.HORIZONTAL
+        row.gravity = Gravity.END
+
+        val later = compactButton("P\u00f3\u017aniej") { dialog.dismiss() }
+        val whatsNew = compactButton("Co nowego?") {
+            changes.visibility = if (changes.visibility == View.VISIBLE) View.GONE else View.VISIBLE
+        }
+        lateinit var install: Button
+        install = compactButton("Zainstaluj", primary = true) {
+            install.isEnabled = false
+            later.isEnabled = false
+            whatsNew.isEnabled = false
+            title.text = "Pobieranie aktualizacji"
+            body.text = "Pobieranie PlusX Mobile ${info.tag}..."
+            progress.visibility = View.VISIBLE
+            status.visibility = View.VISIBLE
+            status.text = "Prosz\u0119 czeka\u0107..."
+            startUpdateDownload(info, dialog, title, body, status, progress)
+        }
+
+        card.addView(changes, LinearLayout.LayoutParams(-1, -2).apply { setMargins(0, dp(14), 0, 0) })
+        card.addView(progress, LinearLayout.LayoutParams(-2, -2).apply {
+            gravity = Gravity.CENTER_HORIZONTAL
+            setMargins(0, dp(14), 0, 0)
+        })
+        card.addView(status)
+        row.addView(whatsNew)
+        row.addView(later)
+        row.addView(install)
+        card.addView(row, LinearLayout.LayoutParams(-1, -2).apply { setMargins(0, dp(16), 0, 0) })
+
+        dialog.setContentView(card)
+        dialog.window?.setBackgroundDrawableResource(android.R.color.transparent)
+        dialog.show()
+        dialog.window?.setLayout(minOf(resources.displayMetrics.widthPixels - dp(48), dp(440)), ViewGroup.LayoutParams.WRAP_CONTENT)
+        card.alpha = 0f
+        card.scaleX = 0.96f
+        card.scaleY = 0.96f
+        card.animate().alpha(1f).scaleX(1f).scaleY(1f).setDuration(180).start()
+    }
+
+    private fun startUpdateDownload(
+        info: StartupUpdateInfo,
+        dialog: Dialog,
+        title: TextView,
+        body: TextView,
+        status: TextView,
+        progress: ProgressBar
+    ) {
+        Thread {
+            val result = runCatching { downloadAndVerifyUpdateApk(info) }
+            runOnUiThread {
+                progress.visibility = View.GONE
+                result.onSuccess { file ->
+                    title.text = "Aktualizacja gotowa"
+                    body.text = "Plik zosta\u0142 pobrany i zweryfikowany."
+                    status.text = ""
+                    status.visibility = View.GONE
+                    val open = compactButton("Otw\u00f3rz instalator", primary = true) {
+                        dialog.dismiss()
+                        installDownloadedApk(file)
+                    }
+                    (title.parent as? LinearLayout)?.addView(open, LinearLayout.LayoutParams(-1, dp(52)).apply {
+                        setMargins(0, dp(14), 0, 0)
+                    })
+                }.onFailure {
+                    title.text = "Nie uda\u0142o si\u0119 pobra\u0107 aktualizacji"
+                    body.text = "Sprawd\u017a po\u0142\u0105czenie i spr\u00f3buj ponownie."
+                    status.text = it.message.orEmpty().take(120)
+                    status.visibility = View.VISIBLE
+                    val retry = compactButton("Spr\u00f3buj ponownie", primary = true) {
+                        dialog.dismiss()
+                        showStartupUpdateDialog(info)
+                    }
+                    (title.parent as? LinearLayout)?.addView(retry, LinearLayout.LayoutParams(-1, dp(52)).apply {
+                        setMargins(0, dp(14), 0, 0)
+                    })
+                }
+            }
+        }.start()
+    }
+
     private fun releaseApkUrl(root: JSONObject): String {
         val assets = root.optJSONArray("assets") ?: return ""
         for (index in 0 until assets.length()) {
@@ -1515,6 +1737,28 @@ class MainActivity : Activity() {
             val name = asset.optString("name")
             val url = asset.optString("browser_download_url")
             if (name.endsWith(".apk", ignoreCase = true) && url.startsWith("https://")) {
+                return url
+            }
+        }
+        return ""
+    }
+
+    private fun releaseSha256Url(root: JSONObject, apkUrl: String): String {
+        val assets = root.optJSONArray("assets") ?: return ""
+        val apkName = apkUrl.substringAfterLast("/")
+        for (index in 0 until assets.length()) {
+            val asset = assets.optJSONObject(index) ?: continue
+            val name = asset.optString("name")
+            val url = asset.optString("browser_download_url")
+            if (url.startsWith("https://") && name.equals("$apkName.sha256", ignoreCase = true)) {
+                return url
+            }
+        }
+        for (index in 0 until assets.length()) {
+            val asset = assets.optJSONObject(index) ?: continue
+            val name = asset.optString("name")
+            val url = asset.optString("browser_download_url")
+            if (url.startsWith("https://") && name.endsWith(".sha256", ignoreCase = true)) {
                 return url
             }
         }
@@ -1532,7 +1776,12 @@ class MainActivity : Activity() {
 
         showLoadingPage("Aktualizacja", "Pobieranie wersji $tag...")
         Thread {
-            val result = runCatching { downloadUpdateApk(apkUrl, tag) }
+            val result = runCatching {
+                val json = getJson(githubLatestReleaseUrl, "")
+                val root = JSONObject(json)
+                val shaUrl = releaseSha256Url(root, apkUrl)
+                downloadAndVerifyUpdateApk(StartupUpdateInfo(tag, apkUrl, shaUrl, tag, ""))
+            }
             runOnUiThread {
                 result.onSuccess { file ->
                     Toast.makeText(this, "Pobrano aktualizacje.", Toast.LENGTH_SHORT).show()
@@ -1548,6 +1797,107 @@ class MainActivity : Activity() {
                 }
             }
         }.start()
+    }
+
+    private fun downloadAndVerifyUpdateApk(info: StartupUpdateInfo): File {
+        val file = downloadUpdateApk(info.apkUrl, info.tag)
+        runCatching {
+            if (info.shaUrl.isNotBlank()) {
+                val expected = getRawText(info.shaUrl).trim().split(Regex("\\s+")).firstOrNull().orEmpty()
+                if (expected.isNotBlank() && sha256(file) != expected.lowercase(Locale.US)) {
+                    file.delete()
+                    throw IllegalStateException("Suma kontrolna aktualizacji jest nieprawidlowa.")
+                }
+            }
+            verifyDownloadedApk(file)
+        }.onFailure {
+            file.delete()
+            throw it
+        }
+        return file
+    }
+
+    private fun verifyDownloadedApk(file: File) {
+        val flags = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+            PackageManager.GET_SIGNING_CERTIFICATES
+        } else {
+            @Suppress("DEPRECATION")
+            PackageManager.GET_SIGNATURES
+        }
+        val info = packageManager.getPackageArchiveInfo(file.absolutePath, flags)
+            ?: throw IllegalStateException("Pobranego pliku nie mozna uzyc jako APK.")
+
+        if (info.packageName != packageName) {
+            throw IllegalStateException("Plik aktualizacji ma nieprawidlowy pakiet.")
+        }
+
+        val currentCode = packageManager.getPackageInfo(packageName, 0).longVersionCode
+        val downloadedCode = info.longVersionCode
+        if (downloadedCode < currentCode) {
+            throw IllegalStateException("Nie mozna zainstalowac starszej wersji aplikacji.")
+        }
+        if (downloadedCode == currentCode) {
+            throw IllegalStateException("Masz juz te wersje aplikacji.")
+        }
+
+        val appInfo = info.applicationInfo
+        if (appInfo != null) {
+            val flagsValue = appInfo.flags
+            if ((flagsValue and android.content.pm.ApplicationInfo.FLAG_DEBUGGABLE) != 0 ||
+                (flagsValue and android.content.pm.ApplicationInfo.FLAG_TEST_ONLY) != 0
+            ) {
+                throw IllegalStateException("Plik aktualizacji nie jest wydaniem release.")
+            }
+        }
+
+        val actualCert = archiveSigningCertSha256(info)
+        val expectedCert = officialSigningCertSha256()
+        if (actualCert.isBlank() || actualCert != expectedCert) {
+            throw IllegalStateException("Plik aktualizacji ma nieprawidlowy podpis.")
+        }
+    }
+
+    private fun archiveSigningCertSha256(info: android.content.pm.PackageInfo): String {
+        val signatures = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+            info.signingInfo?.apkContentsSigners
+        } else {
+            @Suppress("DEPRECATION")
+            info.signatures
+        } ?: return ""
+        val cert = signatures.firstOrNull()?.toByteArray() ?: return ""
+        return certSha256(cert)
+    }
+
+    private fun officialSigningCertSha256(): String {
+        return "96637c94668794e0ce73752eaa132b94e2cc9847f94e50fc2bb638a2498e3297"
+    }
+
+    private fun sha256(file: File): String {
+        val digest = MessageDigest.getInstance("SHA-256")
+        file.inputStream().use { input ->
+            val buffer = ByteArray(DEFAULT_BUFFER_SIZE)
+            while (true) {
+                val read = input.read(buffer)
+                if (read <= 0) break
+                digest.update(buffer, 0, read)
+            }
+        }
+        return digest.digest().joinToString("") { "%02x".format(it) }
+    }
+
+    private fun certSha256(bytes: ByteArray): String {
+        return MessageDigest.getInstance("SHA-256")
+            .digest(bytes)
+            .joinToString("") { "%02x".format(it) }
+    }
+
+    private fun getRawText(address: String): String {
+        val connection = URL(address).openConnection() as HttpURLConnection
+        connection.requestMethod = "GET"
+        connection.connectTimeout = 15000
+        connection.readTimeout = 30000
+        connection.setRequestProperty("User-Agent", "PlusXMobile/${appVersionName()}")
+        return connection.inputStream.bufferedReader(Charsets.UTF_8).use { it.readText() }
     }
 
     private fun downloadUpdateApk(apkUrl: String, tag: String): File {
@@ -1892,6 +2242,103 @@ class MainActivity : Activity() {
         }
     }
 
+    private fun openSupportPage() {
+        val uri = Uri.parse("https://tipply.pl/@torvinek")
+        if (uri.scheme != "https" || uri.host != "tipply.pl") {
+            Toast.makeText(this, "Nie udalo sie otworzyc strony wsparcia.", Toast.LENGTH_LONG).show()
+            return
+        }
+        val intent = Intent(Intent.ACTION_VIEW, uri)
+        if (intent.resolveActivity(packageManager) == null) {
+            Toast.makeText(this, "Nie udalo sie otworzyc strony wsparcia.", Toast.LENGTH_LONG).show()
+            return
+        }
+        startActivity(intent)
+    }
+
+    private fun rememberDashboardAndMaybeShowSupport() {
+        val prefs = getSharedPreferences("plusx_support", Context.MODE_PRIVATE)
+        val now = System.currentTimeMillis()
+        if (prefs.getLong("first_dashboard_at", 0L) == 0L) {
+            prefs.edit().putLong("first_dashboard_at", now).apply()
+            return
+        }
+        if (supportPopupShownThisSession ||
+            startupUpdateDialogShown ||
+            prefs.getBoolean("disabled", false) ||
+            prefs.getBoolean("accepted", false)
+        ) {
+            return
+        }
+        val first = prefs.getLong("first_dashboard_at", now)
+        val snoozedUntil = prefs.getLong("snoozed_until", 0L)
+        if (now - first < 72L * 60L * 60L * 1000L || now < snoozedUntil) return
+
+        supportPopupShownThisSession = true
+        Handler(Looper.getMainLooper()).postDelayed({ showSupportDialog() }, 900)
+    }
+
+    private fun showSupportDialog() {
+        if (currentScreen != "dashboard" || isFinishing || isDestroyed) return
+        val prefs = getSharedPreferences("plusx_support", Context.MODE_PRIVATE)
+        val dialog = Dialog(this)
+        val card = LinearLayout(this)
+        card.orientation = LinearLayout.VERTICAL
+        card.setPadding(dp(24), dp(22), dp(24), dp(20))
+        card.background = rounded(cardColor(), 24, strokeColor())
+
+        val icon = TextView(this)
+        icon.text = "\u2615"
+        icon.textSize = 30f
+        icon.gravity = Gravity.CENTER
+        icon.setTextColor(Color.WHITE)
+        icon.background = rounded(Color.rgb(14, 165, 180), 18, 0)
+        card.addView(icon, LinearLayout.LayoutParams(dp(52), dp(52)).apply { gravity = Gravity.CENTER_HORIZONTAL })
+
+        val title = TextView(this)
+        title.text = "Podoba Ci sie PlusX Mobile?"
+        title.textSize = 20f
+        title.setTypeface(null, 1)
+        title.gravity = Gravity.CENTER
+        title.setTextColor(textColor())
+        title.setPadding(0, dp(14), 0, dp(8))
+        card.addView(title)
+
+        val body = TextView(this)
+        body.text = "Jesli aplikacja Ci sie przydala i chcesz wesprzec dalszy rozwoj projektu, mozesz postawic mi kawe lub piwko. Kazde wsparcie bardzo doceniam - dzieki!"
+        body.textSize = 14f
+        body.gravity = Gravity.CENTER
+        body.setTextColor(textColor())
+        body.setLineSpacing(dp(2).toFloat(), 1f)
+        card.addView(body)
+
+        val coffee = actionButton("Postaw kawe", primary = true) {
+            prefs.edit().putBoolean("accepted", true).apply()
+            dialog.dismiss()
+            openSupportPage()
+        }
+        val later = actionButton("Moze pozniej") {
+            prefs.edit().putLong("snoozed_until", System.currentTimeMillis() + 30L * 24L * 60L * 60L * 1000L).apply()
+            dialog.dismiss()
+        }
+        val never = actionButton("Nie pokazuj ponownie") {
+            prefs.edit().putBoolean("disabled", true).apply()
+            dialog.dismiss()
+        }
+        card.addView(coffee, LinearLayout.LayoutParams(-1, dp(52)).apply { setMargins(0, dp(16), 0, 0) })
+        card.addView(later, LinearLayout.LayoutParams(-1, dp(46)).apply { setMargins(0, dp(8), 0, 0) })
+        card.addView(never, LinearLayout.LayoutParams(-1, dp(46)).apply { setMargins(0, dp(6), 0, 0) })
+
+        dialog.setContentView(card)
+        dialog.window?.setBackgroundDrawableResource(android.R.color.transparent)
+        dialog.show()
+        dialog.window?.setLayout(minOf(resources.displayMetrics.widthPixels - dp(48), dp(420)), ViewGroup.LayoutParams.WRAP_CONTENT)
+        card.alpha = 0f
+        card.scaleX = 0.96f
+        card.scaleY = 0.96f
+        card.animate().alpha(1f).scaleX(1f).scaleY(1f).setDuration(180).start()
+    }
+
     private fun openInternalAction(url: String) {
         when (url) {
             "app://packets/open" -> {
@@ -1928,6 +2375,10 @@ class MainActivity : Activity() {
             }
             "app://about/check" -> {
                 loadAboutPage(forceCheck = true)
+                return
+            }
+            "app://support" -> {
+                openSupportPage()
                 return
             }
             else -> {
@@ -1998,7 +2449,7 @@ class MainActivity : Activity() {
     }
 
     private fun getHtml(address: String): String {
-        val connection = AppConfig.requirePortalUrl(address).openConnection() as HttpURLConnection
+        val connection = URL(address).openConnection() as HttpURLConnection
         connection.requestMethod = "GET"
         connection.setRequestProperty("User-Agent", "Mozilla/5.0 PlusXMobile Android")
         connection.setRequestProperty("Accept", "text/html,application/xhtml+xml")
@@ -2010,16 +2461,13 @@ class MainActivity : Activity() {
     }
 
     private fun getJson(address: String, token: String): String {
-        val url = if (token.isBlank()) {
-            URI(address).toURL()
-        } else {
-            AppConfig.requireBackendUrl(address)
-        }
-        val connection = url.openConnection() as HttpURLConnection
+        val connection = URL(address).openConnection() as HttpURLConnection
         connection.requestMethod = "GET"
         connection.setRequestProperty("User-Agent", "PlusXMobile Android")
         connection.setRequestProperty("Accept", "application/json")
-        setBackendAuthorization(connection, token)
+        if (token.isNotBlank()) {
+            connection.setRequestProperty("Authorization", "Bearer $token")
+        }
         connection.connectTimeout = 30000
         connection.readTimeout = 60000
         return connection.inputStream.bufferedReader(Charsets.UTF_8).use { it.readText() }
@@ -2067,6 +2515,7 @@ class MainActivity : Activity() {
             PageItem("Email", "Aby zmienic email skontaktuj sie z supportem PlusX.", email.ifBlank { "Brak" }),
             PageItem("Zmien haslo", "Otwiera bezpieczny formularz portalu w WebView.", actionUrl = "/profile.php", actionLabel = "Otworz"),
             PageItem("Zarzadzaj 2FA", "Kod QR i sekret zostaja tylko po stronie portalu.", actionUrl = "/profile.php", actionLabel = "Otworz"),
+            PageItem("Wesprzyj projekt", "Postaw kawe i wesprzyj rozwoj PlusX Mobile.", actionUrl = "app://support", actionLabel = "Otworz"),
             PageItem("O aplikacji", "Wersja aplikacji, aktualizacje i ostatnie zmiany z GitHuba.", actionUrl = "app://about", actionLabel = "Otworz"),
             PageItem("Diagnostyka", "Dane do pomocy technicznej. Bez doładowań, ustawien i bez prywatnych adresow IP.", actionUrl = "app://diagnostics", actionLabel = "Otworz")
         )
@@ -3247,10 +3696,10 @@ class MainActivity : Activity() {
     }
 
     private fun postJson(address: String, token: String, body: String): String {
-        val connection = AppConfig.requireBackendUrl(address).openConnection() as HttpURLConnection
+        val connection = URL(address).openConnection() as HttpURLConnection
         connection.requestMethod = "POST"
         connection.setRequestProperty("User-Agent", "Mozilla/5.0 PlusXMobile Android")
-        setBackendAuthorization(connection, token)
+        connection.setRequestProperty("Authorization", "Bearer $token")
         connection.setRequestProperty("Content-Type", "application/json; charset=utf-8")
         connection.setRequestProperty("Accept", "application/json")
         connection.doOutput = true
@@ -3262,12 +3711,6 @@ class MainActivity : Activity() {
         val text = stream?.bufferedReader(Charsets.UTF_8)?.use { it.readText() }.orEmpty()
         if (code !in 200..299) error("HTTP $code: $text")
         return text
-    }
-
-    private fun setBackendAuthorization(connection: HttpURLConnection, token: String) {
-        if (token.isNotBlank()) {
-            connection.setRequestProperty("Authorization", "Bearer $token")
-        }
     }
 
     private fun isValidContactEmail(value: String): Boolean {
@@ -3309,7 +3752,7 @@ class MainActivity : Activity() {
     private fun appVersionLabel(): String {
         return runCatching {
             val info = packageManager.getPackageInfo(packageName, 0)
-            "${info.versionName} (${info.longVersionCode})"
+            "${info.versionName} (${info.longVersionCode})\nBuild: ${BuildConfig.BUILD_TYPE.uppercase(Locale.US)}"
         }.getOrElse { "brak danych" }
     }
 
@@ -3394,4 +3837,5 @@ class MainActivity : Activity() {
         }
     }
 }
+
 

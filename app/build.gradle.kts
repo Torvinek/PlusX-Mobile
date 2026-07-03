@@ -10,6 +10,12 @@ val localProperties = Properties().apply {
     if (file.exists()) file.inputStream().use(::load)
 }
 
+val versionProperties = Properties().apply {
+    val file = rootProject.file("version.properties")
+    if (!file.exists()) error("version.properties is missing.")
+    file.inputStream().use(::load)
+}
+
 fun projectSetting(name: String, defaultValue: String = ""): String =
     providers.gradleProperty(name).orNull
         ?: System.getenv(name)
@@ -21,10 +27,24 @@ fun quoted(value: String): String =
 
 val signingProperties = Properties().apply {
     val file = rootProject.file("signing.properties")
-    if (file.exists()) file.inputStream().use(::load)
+    if (file.exists()) {
+        file.inputStream().use(::load)
+    }
 }
 
-val hasReleaseSigning = listOf("storeFile", "storePassword", "keyAlias", "keyPassword")
+fun requiredSigningProperty(name: String): String =
+    signingProperties.getProperty(name)?.takeIf { it.isNotBlank() }
+        ?: error(
+            """
+            OFFICIAL SIGNING KEY NOT CONFIGURED.
+
+            Missing signing.properties value: $name
+            Configure signing.properties or GitHub Actions secrets.
+            Do not generate or use a different signing key.
+            """.trimIndent()
+        )
+
+val hasOfficialSigning = listOf("storeFile", "storePassword", "keyAlias", "keyPassword")
     .all { !signingProperties.getProperty(it).isNullOrBlank() }
 
 android {
@@ -35,8 +55,8 @@ android {
         applicationId = "pl.torvinek.plusxmobile"
         minSdk = 28
         targetSdk = 35
-        versionCode = 10
-        versionName = "1.5.4"
+        versionCode = versionProperties.getProperty("VERSION_CODE").toInt()
+        versionName = versionProperties.getProperty("VERSION_NAME")
 
         buildConfigField(
             "String",
@@ -64,31 +84,36 @@ android {
         targetCompatibility = JavaVersion.VERSION_17
     }
 
-    if (hasReleaseSigning) {
+    if (hasOfficialSigning) {
         signingConfigs {
-            create("release") {
-                storeFile = rootProject.file(signingProperties.getProperty("storeFile"))
-                storePassword = signingProperties.getProperty("storePassword")
-                keyAlias = signingProperties.getProperty("keyAlias")
-                keyPassword = signingProperties.getProperty("keyPassword")
+            create("official") {
+                storeFile = rootProject.file(requiredSigningProperty("storeFile"))
+                storePassword = requiredSigningProperty("storePassword")
+                keyAlias = requiredSigningProperty("keyAlias")
+                keyPassword = requiredSigningProperty("keyPassword")
             }
         }
     }
 
     buildTypes {
+        debug {
+            isMinifyEnabled = false
+            isDebuggable = true
+            if (hasOfficialSigning) {
+                signingConfig = signingConfigs.getByName("official")
+            }
+        }
         release {
             isMinifyEnabled = true
             isShrinkResources = true
-            if (hasReleaseSigning) {
-                signingConfig = signingConfigs.getByName("release")
+            isDebuggable = false
+            if (hasOfficialSigning) {
+                signingConfig = signingConfigs.getByName("official")
             }
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
-        }
-        debug {
-            isMinifyEnabled = false
         }
     }
 }
@@ -99,4 +124,23 @@ kotlin {
 
 dependencies {
     testImplementation("junit:junit:4.13.2")
+}
+
+gradle.taskGraph.whenReady {
+    val apkTasks = allTasks.map { it.name }.filter {
+        it.contains("assemble", ignoreCase = true) ||
+            it.contains("bundle", ignoreCase = true) ||
+            it.contains("install", ignoreCase = true) ||
+            it.contains("package", ignoreCase = true)
+    }
+    if (apkTasks.isNotEmpty() && !hasOfficialSigning) {
+        error(
+            """
+            OFFICIAL SIGNING KEY NOT CONFIGURED.
+
+            Configure signing.properties or GitHub Actions secrets.
+            Do not generate or use a different signing key.
+            """.trimIndent()
+        )
+    }
 }
