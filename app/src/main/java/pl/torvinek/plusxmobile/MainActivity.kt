@@ -1,6 +1,7 @@
 package pl.torvinek.plusxmobile
 
 import android.annotation.SuppressLint
+import android.Manifest
 import android.app.Activity
 import android.app.AlertDialog
 import android.app.Dialog
@@ -8,6 +9,7 @@ import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.content.res.Configuration
 import android.graphics.Color
 import android.graphics.drawable.GradientDrawable
@@ -16,6 +18,8 @@ import android.os.Build
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
+import android.provider.Settings
+import android.text.TextUtils
 import android.text.Editable
 import android.text.TextWatcher
 import android.view.Gravity
@@ -36,13 +40,15 @@ import android.widget.LinearLayout
 import android.widget.ListView
 import android.widget.ProgressBar
 import android.widget.ScrollView
-import android.widget.Switch
 import android.widget.TextView
 import android.widget.Toast
 import org.json.JSONArray
 import org.json.JSONObject
 import org.json.JSONTokener
+import java.io.File
+import java.io.FileOutputStream
 import java.net.HttpURLConnection
+import java.net.URI
 import java.net.URL
 import java.net.URLDecoder
 import java.net.URLEncoder
@@ -57,6 +63,7 @@ class MainActivity : Activity() {
     private val telegramNewsUrl = "${AppConfig.backendBaseUrl}/telegram/plusx/wiadomosci?limit=80"
     private val telegramEpgUrl = "${AppConfig.backendBaseUrl}/telegram/plusx/epgevent?limit=200"
     private val diagnosticsSubmitUrl = "${AppConfig.backendBaseUrl}/telegram/plusx/diagnostics"
+    private val githubLatestReleaseUrl = "https://api.github.com/repos/Torvinek/PlusX-Mobile/releases/latest"
     private val telegramBackendToken = AppConfig.backendToken
 
     private lateinit var root: FrameLayout
@@ -78,8 +85,18 @@ class MainActivity : Activity() {
     private var currentPacketsSelectedUser: String = ""
     private var currentPacketsUsers: List<String> = emptyList()
     private var currentPacketsItems: List<PageItem> = emptyList()
+    private var currentPacketsActivePacket: String = ""
+    private val resellerAccountActivity = mutableMapOf<String, Boolean>()
+    private val resellerAccountDetails = mutableMapOf<String, ResellerHtmlParser.Account>()
     private var packetsPanel: LinearLayout? = null
+    private var billingPanel: LinearLayout? = null
+    private var currentBillingSelectedUser: String = ""
+    private var currentBillingUsers: List<String> = emptyList()
+    private var currentBillingEntries: List<BillingHistoryEntry> = emptyList()
+    private var currentBillingMainUser: String = ""
+    private val billingDetails = mutableMapOf<String, String>()
     private var loginTransitionOverlay: View? = null
+    private var pendingUpdateApk: File? = null
     private val polishMonths = mapOf(
         "stycznia" to "01",
         "lutego" to "02",
@@ -129,7 +146,6 @@ class MainActivity : Activity() {
         "12" to "Grudzien"
     )
 
-
     private data class PageItem(
         val title: String,
         val subtitle: String = "",
@@ -140,7 +156,8 @@ class MainActivity : Activity() {
         val secondActionUrl: String = "",
         val secondActionLabel: String = "",
         val badgeText: String = "",
-        val badgeImageRes: Int = 0
+        val badgeImageRes: Int = 0,
+        val cornerText: String = ""
     )
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -151,7 +168,27 @@ class MainActivity : Activity() {
         root.setBackgroundColor(bgColor())
 
         CookieManager.getInstance().setAcceptCookie(true)
+        setupNotifications()
         showLogin()
+    }
+
+    override fun onResume() {
+        super.onResume()
+        pendingUpdateApk?.let { file ->
+            if (file.exists() && canInstallPackages()) {
+                pendingUpdateApk = null
+                launchApkInstaller(file)
+            }
+        }
+    }
+
+    private fun setupNotifications() {
+        NewsNotificationReceiver.schedule(this)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+            checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
+        ) {
+            requestPermissions(arrayOf(Manifest.permission.POST_NOTIFICATIONS), 501)
+        }
     }
 
     @SuppressLint("SetJavaScriptEnabled")
@@ -173,6 +210,14 @@ class MainActivity : Activity() {
         webView.settings.userAgentString = webView.settings.userAgentString + " PlusXMobile"
 
         webView.webViewClient = object : WebViewClient() {
+            override fun onPageStarted(view: WebView, url: String, favicon: android.graphics.Bitmap?) {
+                val uri = Uri.parse(sanitizePortalUrl(Uri.parse(url)))
+                if (AppConfig.isPortalUri(uri) && uri.path?.endsWith("/login.php") != true) {
+                    showLoginTransitionOverlay()
+                    scheduleDashboardPoll(view)
+                }
+            }
+
             override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean {
                 val cleanUrl = sanitizePortalUrl(request.url)
                 if (cleanUrl != request.url.toString()) {
@@ -195,6 +240,8 @@ class MainActivity : Activity() {
                 if (AppConfig.isPortalUri(uri) && uri.path?.endsWith("/index.php") == true) {
                     showLoginTransitionOverlay()
                     extractDashboardFromWebView(view)
+                } else if (AppConfig.isPortalUri(uri)) {
+                    detectDashboardFromWebView(view)
                 } else {
                     hideLoginTransitionOverlay()
                 }
@@ -204,6 +251,45 @@ class MainActivity : Activity() {
         root.addView(webView, FrameLayout.LayoutParams(-1, -1))
         triedIndexFirst = true
         webView.loadUrl(indexUrl)
+    }
+
+    private fun detectDashboardFromWebView(webView: WebView) {
+        webView.evaluateJavascript("document.body ? document.body.innerText : ''") { encodedText ->
+            if (currentWebView !== webView) return@evaluateJavascript
+            val text = runCatching {
+                JSONTokener(encodedText).nextValue() as String
+            }.getOrDefault("")
+            if (
+                text.contains("DASHBOARD", ignoreCase = true) ||
+                text.contains("Your balance", ignoreCase = true) ||
+                text.contains("TV channels on the server", ignoreCase = true)
+            ) {
+                showLoginTransitionOverlay()
+                extractDashboardFromWebView(webView)
+            } else {
+                hideLoginTransitionOverlay()
+            }
+        }
+    }
+
+    private fun scheduleDashboardPoll(webView: WebView, attempt: Int = 0) {
+        Handler(Looper.getMainLooper()).postDelayed({
+            if (currentWebView !== webView || currentScreen != "login") return@postDelayed
+            webView.evaluateJavascript("document.documentElement.outerHTML") { encodedHtml ->
+                if (currentWebView !== webView || currentScreen != "login") return@evaluateJavascript
+                val html = runCatching {
+                    JSONTokener(encodedHtml).nextValue() as String
+                }.getOrDefault("")
+                val balance = parseBalance(html)
+                if (balance != null) {
+                    cookieHeader = CookieManager.getInstance().getCookie(baseUrl).orEmpty()
+                    lastDashboardHtml = html
+                    showDashboard(balance)
+                } else if (attempt < 20) {
+                    scheduleDashboardPoll(webView, attempt + 1)
+                }
+            }
+        }, if (attempt == 0) 180 else 180)
     }
 
     private fun sanitizePortalUrl(uri: Uri): String {
@@ -264,14 +350,21 @@ class MainActivity : Activity() {
         webView.evaluateJavascript(js, null)
     }
 
-    private fun extractDashboardFromWebView(webView: WebView) {
+    private fun extractDashboardFromWebView(webView: WebView, attempt: Int = 0) {
         webView.evaluateJavascript("document.documentElement.outerHTML") { encodedHtml ->
+            if (currentWebView !== webView) return@evaluateJavascript
             val html = runCatching {
                 JSONTokener(encodedHtml).nextValue() as String
             }.getOrDefault("")
 
             val balance = parseBalance(html)
             if (balance == null) {
+                if (attempt < 6 && html.contains("DASHBOARD", ignoreCase = true)) {
+                    Handler(Looper.getMainLooper()).postDelayed({
+                        extractDashboardFromWebView(webView, attempt + 1)
+                    }, 150)
+                    return@evaluateJavascript
+                }
                 val currentUrl = webView.url.orEmpty()
                 if (triedIndexFirst && !currentUrl.endsWith("/login.php")) {
                     triedIndexFirst = false
@@ -336,7 +429,7 @@ class MainActivity : Activity() {
         val header = LinearLayout(this)
         header.orientation = LinearLayout.HORIZONTAL
         header.gravity = Gravity.CENTER_VERTICAL
-        header.layoutParams = LinearLayout.LayoutParams(-1, dp(56))
+        header.layoutParams = LinearLayout.LayoutParams(-1, dp(50))
 
         val title = TextView(this)
         title.text = "PlusX Mobile"
@@ -344,13 +437,18 @@ class MainActivity : Activity() {
         title.setTextColor(textColor())
         title.setTypeface(null, 1)
         title.setSingleLine(true)
+        title.maxLines = 1
+        title.ellipsize = TextUtils.TruncateAt.END
+        title.gravity = Gravity.CENTER_VERTICAL
+        title.includeFontPadding = false
         header.addView(title, LinearLayout.LayoutParams(0, -2, 1f))
 
         val logo = ImageView(this)
         logo.setImageResource(R.drawable.plusx_logo_cropped)
         logo.scaleType = ImageView.ScaleType.FIT_CENTER
+        logo.adjustViewBounds = true
         logo.alpha = 0.96f
-        header.addView(logo, LinearLayout.LayoutParams(dp(154), dp(54)).apply { setMargins(dp(8), dp(6), 0, 0) })
+        header.addView(logo, LinearLayout.LayoutParams(dp(124), dp(44)).apply { setMargins(dp(12), 0, 0, 0) })
         panel.addView(header)
 
         val subtitle = TextView(this)
@@ -366,6 +464,7 @@ class MainActivity : Activity() {
         panel.addView(actionButton("Programy na dziś") { loadEpgPage() })
         panel.addView(actionButton("Kup pakiet") { loadNativePage("packets.php", "Pakiety") { parsePackets(it) } })
         panel.addView(actionButton("Doladuj konto") { showPaymentChoice() })
+        panel.addView(actionButton("Historia zakupow") { loadNativePage("balance_history.php?page=1&items_pp=1000&exp_filter=&sort=", "Historia zakupow") { parseBillingHistory(it) } })
         panel.addView(actionButton("Reseller Panel") { loadResellerPage() })
         panel.addView(actionButton("Linki M3U") { loadNativePage("tuner_settings.php", "Linki M3U") { parseM3u(it) } })
         panel.addView(actionButton("Ustawienia") { loadNativePage("profile.php", "Ustawienia") { parseProfile(it) } })
@@ -465,19 +564,24 @@ class MainActivity : Activity() {
     private fun themeSwitchRow(): View {
         val row = LinearLayout(this)
         row.orientation = LinearLayout.HORIZONTAL
-        row.gravity = Gravity.END or Gravity.CENTER_VERTICAL
-        val toggle = Switch(this)
-        toggle.text = "Tryb ciemny"
-        toggle.textSize = 13f
-        toggle.setTextColor(textColor())
-        toggle.isChecked = darkMode
-        toggle.setOnCheckedChangeListener { _, checked ->
-            darkMode = checked
+        row.gravity = Gravity.CENTER_VERTICAL
+        row.setPadding(dp(14), dp(12), dp(14), dp(12))
+        row.background = rounded(cardColor(), 18, strokeColor())
+
+        val label = TextView(this)
+        label.text = if (darkMode) "Tryb ciemny" else "Tryb jasny"
+        label.textSize = 15f
+        label.setTypeface(null, 1)
+        label.setTextColor(if (darkMode) Color.WHITE else Color.rgb(16, 24, 40))
+        row.addView(label, LinearLayout.LayoutParams(0, -2, 1f))
+
+        val button = compactButton("Zmien", primary = true) {
+            darkMode = !darkMode
             root.setBackgroundColor(bgColor())
-            Toast.makeText(this, if (checked) "Tryb ciemny wlaczony" else "Tryb jasny wlaczony", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, if (darkMode) "Tryb ciemny wlaczony" else "Tryb jasny wlaczony", Toast.LENGTH_SHORT).show()
             showNativePage("Ustawienia", "profile.php", settingsItems())
         }
-        row.addView(toggle)
+        row.addView(button, LinearLayout.LayoutParams(dp(118), dp(46)))
         row.layoutParams = LinearLayout.LayoutParams(-1, -2).apply {
             setMargins(0, 0, 0, dp(10))
         }
@@ -662,7 +766,14 @@ class MainActivity : Activity() {
         showLoadingPage("Reseller", "Pobieranie listy kont...\nDuza lista moze ladowac sie dluzej.")
         Thread {
             val items = runCatching {
-                ResellerPaginator.fetchAll(::getHtml).accounts.map(::resellerAccountItem)
+                val accounts = ResellerPaginator.fetchAll(::getHtml).accounts
+                resellerAccountActivity.clear()
+                resellerAccountDetails.clear()
+                accounts.forEach { account ->
+                    resellerAccountActivity[accountStatusKey(account.login)] = account.hasActivePackage
+                    resellerAccountDetails[accountStatusKey(account.login)] = account
+                }
+                accounts.map(::resellerAccountItem)
             }.getOrElse {
                 listOf(
                     PageItem(
@@ -757,11 +868,25 @@ class MainActivity : Activity() {
             return
         }
 
+        if (title == "Historia zakupow") {
+            billingPanel = panel
+            renderBillingHistoryItems(panel, "")
+            root.addView(scroll)
+            animateScreen(scroll)
+            return
+        }
+
         if (items.isEmpty()) {
             panel.addView(infoCard("Brak danych", "Parser nie znalazl nic konkretnego na tej stronie.", ""))
         } else {
             items.forEach { item ->
-                panel.addView(if (title == "Wiadomosci" || title == "Programy na dziś") newsCard(item) else itemCard(item))
+                panel.addView(
+                    when {
+                        title == "Wiadomosci" || title == "Programy na dziś" -> newsCard(item)
+                        title == "Ustawienia" -> itemCard(item, clickableCard = true)
+                        else -> itemCard(item)
+                    }
+                )
             }
         }
 
@@ -882,6 +1007,155 @@ class MainActivity : Activity() {
 
         card.layoutParams = LinearLayout.LayoutParams(-1, -2).apply { setMargins(0, 0, 0, dp(14)) }
         return card
+    }
+
+    private fun renderBillingHistoryItems(panel: LinearLayout, loadingText: String) {
+        while (panel.childCount > 3) {
+            panel.removeViewAt(3)
+        }
+        billingDetails.clear()
+        panel.addView(billingUserCard(loadingText))
+        val items = billingHistoryItemsForSelectedUser()
+        if (items.isEmpty()) {
+            panel.addView(infoCard("Brak wpisow", "Nie znaleziono historii dla wybranego uzytkownika.", ""))
+        } else {
+            items.forEach { panel.addView(itemCard(it)) }
+        }
+        panel.addView(copyrightFooter())
+    }
+
+    private fun billingUserCard(loadingText: String): View {
+        val selected = cleanSelectedUser(currentBillingSelectedUser)
+        val account = resellerAccountDetails[accountStatusKey(currentBillingSelectedUser)]
+        val packageHint = billingPackageHints(currentBillingEntries)[accountStatusKey(currentBillingSelectedUser)].orEmpty()
+        val card = LinearLayout(this)
+        card.orientation = LinearLayout.VERTICAL
+        card.setPadding(dp(16), dp(16), dp(16), dp(16))
+        card.background = rounded(cardColor(), 18, strokeColor())
+
+        val title = TextView(this)
+        title.text = "Historia dla uzytkownika"
+        title.textSize = 17f
+        title.setTypeface(null, 1)
+        title.setTextColor(textColor())
+        card.addView(title)
+
+        val subtitle = TextView(this)
+        subtitle.text = if (selected.isBlank()) "Pokazujesz: wszyscy uzytkownicy" else "Pokazujesz: $selected"
+        subtitle.textSize = 13f
+        subtitle.setTextColor(mutedColor())
+        subtitle.setPadding(0, dp(4), 0, dp(10))
+        card.addView(subtitle)
+
+        val dropdown = TextView(this)
+        dropdown.text = if (selected.isBlank()) "Wszyscy" else selected
+        dropdown.textSize = 15f
+        dropdown.setTextColor(textColor())
+        dropdown.setPadding(dp(14), dp(12), dp(14), dp(12))
+        dropdown.background = rounded(if (darkMode) Color.rgb(31, 41, 55) else Color.rgb(248, 250, 252), 14, strokeColor())
+        dropdown.setOnClickListener { showBillingUserDropdown() }
+        card.addView(dropdown, LinearLayout.LayoutParams(-1, -2).apply { setMargins(0, 0, 0, dp(10)) })
+
+        val info = TextView(this)
+        info.text = if (account == null || selected.isBlank()) {
+            "Wpisow w historii: ${currentBillingEntries.size}\nDostepnych uzytkownikow: ${currentBillingUsers.size}"
+        } else {
+            listOf(
+                "Notatka: ${account.notice.ifBlank { "Bez notatki" }}",
+                if (account.hasActivePackage) "Status: aktywny" else "Status: nieaktywny",
+                if (account.expiry.isNotBlank()) "Wygasa: ${account.expiry} ${account.days}".trim() else "",
+                if (packageHint.isNotBlank()) "Pakiet z historii: $packageHint" else "Pakiet z historii: brak pewnych danych"
+            ).filter { it.isNotBlank() }.joinToString("\n")
+        }
+        info.textSize = 14f
+        info.setTextColor(textColor())
+        info.setLineSpacing(dp(2).toFloat(), 1f)
+        card.addView(info)
+
+        if (loadingText.isNotBlank()) {
+            val loading = TextView(this)
+            loading.text = loadingText
+            loading.textSize = 13f
+            loading.setTextColor(Color.rgb(14, 165, 180))
+            loading.setPadding(0, dp(10), 0, 0)
+            card.addView(loading)
+        }
+
+        card.layoutParams = LinearLayout.LayoutParams(-1, -2).apply { setMargins(0, 0, 0, dp(14)) }
+        return card
+    }
+
+    private fun showBillingUserDropdown() {
+        val users = listOf("") + currentBillingUsers.distinctBy { accountStatusKey(it) }
+        if (users.size <= 1) {
+            Toast.makeText(this, "Brak listy uzytkownikow", Toast.LENGTH_SHORT).show()
+            return
+        }
+        val dialog = Dialog(this)
+        val box = LinearLayout(this)
+        box.orientation = LinearLayout.VERTICAL
+        box.setPadding(dp(16), dp(16), dp(16), dp(16))
+        box.background = rounded(cardColor(), 18, strokeColor())
+
+        val title = TextView(this)
+        title.text = "Wybierz uzytkownika"
+        title.textSize = 18f
+        title.setTypeface(null, 1)
+        title.setTextColor(textColor())
+        box.addView(title)
+
+        val search = EditText(this)
+        search.hint = "Szukaj"
+        search.textSize = 15f
+        search.setSingleLine(true)
+        search.setTextColor(textColor())
+        search.setHintTextColor(mutedColor())
+        search.setPadding(dp(12), dp(10), dp(12), dp(10))
+        search.background = rounded(if (darkMode) Color.rgb(31, 41, 55) else Color.WHITE, 12, strokeColor())
+        box.addView(search, LinearLayout.LayoutParams(-1, -2).apply { setMargins(0, dp(12), 0, dp(12)) })
+
+        val rows = users.map { it to (if (it.isBlank()) "Wszyscy" else cleanSelectedUser(it)) }.toMutableList()
+        val allRows = rows.toList()
+        val list = ListView(this)
+        list.divider = null
+        list.setBackgroundColor(Color.TRANSPARENT)
+        val adapter = object : ArrayAdapter<Pair<String, String>>(this, android.R.layout.simple_list_item_1, rows) {
+            override fun getView(position: Int, convertView: View?, parent: ViewGroup): View {
+                val text = TextView(context)
+                val row = rows[position]
+                val selected = accountStatusKey(row.first) == accountStatusKey(currentBillingSelectedUser)
+                text.text = row.second
+                text.textSize = 15f
+                text.setTextColor(if (selected) Color.rgb(14, 165, 180) else textColor())
+                text.setTypeface(null, if (selected) 1 else 0)
+                text.setPadding(dp(12), dp(12), dp(12), dp(12))
+                text.background = rounded(if (selected) selectedDropdownColor() else cardColor(), 10, if (selected) Color.rgb(14, 165, 180) else 0)
+                return text
+            }
+        }
+        list.adapter = adapter
+        list.setOnItemClickListener { _, _, position, _ ->
+            currentBillingSelectedUser = rows[position].first
+            dialog.dismiss()
+            billingPanel?.let { renderBillingHistoryItems(it, "") }
+        }
+        box.addView(list, LinearLayout.LayoutParams(-1, dp(420)))
+
+        search.addTextChangedListener(object : TextWatcher {
+            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) = Unit
+            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {
+                val query = s?.toString().orEmpty().trim()
+                rows.clear()
+                rows.addAll(if (query.isBlank()) allRows else allRows.filter { it.second.contains(query, true) })
+                adapter.notifyDataSetChanged()
+            }
+            override fun afterTextChanged(s: Editable?) = Unit
+        })
+
+        dialog.setContentView(box)
+        dialog.window?.setBackgroundDrawableResource(android.R.color.transparent)
+        dialog.show()
+        dialog.window?.setLayout((resources.displayMetrics.widthPixels * 0.92f).toInt(), ViewGroup.LayoutParams.WRAP_CONTENT)
     }
 
     private fun renderM3uItems(panel: LinearLayout, items: List<PageItem>, loadingText: String) {
@@ -1106,6 +1380,7 @@ class MainActivity : Activity() {
     private fun changePacketsUser(rawLogin: String) {
         val display = cleanSelectedUser(rawLogin)
         currentPacketsSelectedUser = rawLogin
+        currentPacketsActivePacket = ""
         packetsPanel?.let { renderPacketsItems(it, currentPacketsItems, "Ladowanie pakietow dla: $display") }
         Thread {
             val encoded = encodeUrlParam(rawLogin)
@@ -1166,7 +1441,9 @@ class MainActivity : Activity() {
         showLoadingPage("Programy na dziś", "Pobieranie wydarzen z Telegrama...")
         Thread {
             val items = runCatching {
-                parseEpgEvents(getJson(telegramEpgUrl, telegramBackendToken))
+                val separator = if (telegramEpgUrl.contains("?")) "&" else "?"
+                val url = "$telegramEpgUrl${separator}refresh=true&_=${System.currentTimeMillis()}"
+                parseEpgEvents(getJson(url, telegramBackendToken))
             }.getOrElse {
                 listOf(PageItem("Nie udalo sie pobrac programu", "Backend EPG Event", it.message.orEmpty(), badgeText = "EPG"))
             }
@@ -1176,11 +1453,198 @@ class MainActivity : Activity() {
         }.start()
     }
 
-    private fun itemCard(item: PageItem): View {
+    private fun loadAboutPage(forceCheck: Boolean = false) {
+        showLoadingPage("O aplikacji", "Pobieranie informacji o wersji...")
+        Thread {
+            val items = runCatching {
+                val json = getJson(githubLatestReleaseUrl, "")
+                parseAboutRelease(json, forceCheck)
+            }.getOrElse {
+                listOf(
+                    PageItem("PlusX Mobile", "Wersja zainstalowana", appVersionLabel()),
+                    PageItem("Aktualizacje", "Nie udalo sie sprawdzic GitHuba.", it.message.orEmpty(), actionUrl = "app://about", actionLabel = "Sprawdź aktualizacje")
+                )
+            }
+            runOnUiThread {
+                showNativePage("O aplikacji", "about", items)
+            }
+        }.start()
+    }
+
+    private fun parseAboutRelease(json: String, forceCheck: Boolean): List<PageItem> {
+        val root = JSONObject(json)
+        val tag = root.optString("tag_name").ifBlank { root.optString("name") }
+        val releaseName = root.optString("name").ifBlank { tag.ifBlank { "Brak danych" } }
+        val body = root.optString("body").ifBlank { "Brak opisu zmian w release." }
+        val published = formatIsoDateForDisplay(root.optString("published_at"))
+        val current = appVersionLabel()
+        val updateAvailable = isRemoteVersionNewer(tag, current.substringBefore(" "))
+        val apkUrl = releaseApkUrl(root)
+        val updateInfo = if (updateAvailable) {
+            "Dostępna nowa wersja: $tag"
+        } else {
+            "Masz aktualną wersję."
+        }
+
+        val checkSubtitle = if (forceCheck) "Sprawdzono przed chwilą." else "Informacje z GitHuba."
+        val items = mutableListOf(
+            PageItem("PlusX Mobile", "Wersja zainstalowana", current),
+            PageItem(
+                "Aktualizacje",
+                checkSubtitle,
+                updateInfo,
+                actionUrl = "app://about/check",
+                actionLabel = "Sprawdź aktualizacje",
+                secondActionUrl = if (updateAvailable && apkUrl.isNotBlank()) {
+                    "app://about/download?tag=${Uri.encode(tag)}&url=${Uri.encode(apkUrl)}"
+                } else {
+                    ""
+                },
+                secondActionLabel = "Pobierz aktualizację"
+            ),
+            PageItem("Najnowszy release", published.ifBlank { "GitHub" }, releaseName),
+            PageItem("Co zostało dodane", "Opis zmian z GitHuba.", body.cleanMarkdownForApp())
+        )
+        return items
+    }
+
+    private fun releaseApkUrl(root: JSONObject): String {
+        val assets = root.optJSONArray("assets") ?: return ""
+        for (index in 0 until assets.length()) {
+            val asset = assets.optJSONObject(index) ?: continue
+            val name = asset.optString("name")
+            val url = asset.optString("browser_download_url")
+            if (name.endsWith(".apk", ignoreCase = true) && url.startsWith("https://")) {
+                return url
+            }
+        }
+        return ""
+    }
+
+    private fun startUpdateDownload(actionUrl: String) {
+        val uri = Uri.parse(actionUrl)
+        val apkUrl = uri.getQueryParameter("url").orEmpty()
+        val tag = uri.getQueryParameter("tag").orEmpty().ifBlank { "latest" }
+        if (!apkUrl.startsWith("https://")) {
+            Toast.makeText(this, "Brak prawidlowego linku APK.", Toast.LENGTH_LONG).show()
+            return
+        }
+
+        showLoadingPage("Aktualizacja", "Pobieranie wersji $tag...")
+        Thread {
+            val result = runCatching { downloadUpdateApk(apkUrl, tag) }
+            runOnUiThread {
+                result.onSuccess { file ->
+                    Toast.makeText(this, "Pobrano aktualizacje.", Toast.LENGTH_SHORT).show()
+                    installDownloadedApk(file)
+                }.onFailure {
+                    showNativePage(
+                        "O aplikacji",
+                        "about",
+                        listOf(
+                            PageItem("Nie udalo sie pobrac aktualizacji", tag, it.message.orEmpty(), actionUrl = "app://about", actionLabel = "Wroc")
+                        )
+                    )
+                }
+            }
+        }.start()
+    }
+
+    private fun downloadUpdateApk(apkUrl: String, tag: String): File {
+        val safeTag = tag.replace(Regex("[^A-Za-z0-9._-]"), "_")
+        val dir = File(getExternalFilesDir(null), "updates")
+        if (!dir.exists()) dir.mkdirs()
+        val target = File(dir, "PlusXMobile-$safeTag.apk")
+        val temp = File(dir, "PlusXMobile-$safeTag.apk.part")
+
+        val connection = (URL(apkUrl).openConnection() as HttpURLConnection).apply {
+            connectTimeout = 15000
+            readTimeout = 45000
+            instanceFollowRedirects = true
+            requestMethod = "GET"
+            setRequestProperty("User-Agent", "PlusXMobile/${appVersionName()}")
+        }
+
+        connection.inputStream.use { input ->
+            FileOutputStream(temp).use { output ->
+                val buffer = ByteArray(DEFAULT_BUFFER_SIZE)
+                while (true) {
+                    val read = input.read(buffer)
+                    if (read <= 0) break
+                    output.write(buffer, 0, read)
+                }
+            }
+        }
+        connection.disconnect()
+
+        if (temp.length() < 100_000L) {
+            temp.delete()
+            throw IllegalStateException("Pobrany plik jest za maly.")
+        }
+        if (target.exists()) target.delete()
+        if (!temp.renameTo(target)) {
+            temp.copyTo(target, overwrite = true)
+            temp.delete()
+        }
+        return target
+    }
+
+    private fun installDownloadedApk(file: File) {
+        if (!file.exists()) {
+            Toast.makeText(this, "Plik aktualizacji nie istnieje.", Toast.LENGTH_LONG).show()
+            return
+        }
+        if (!canInstallPackages()) {
+            pendingUpdateApk = file
+            Toast.makeText(this, "Zezwol aplikacji na instalowanie aktualizacji.", Toast.LENGTH_LONG).show()
+            openUnknownSourcesSettings()
+            return
+        }
+        launchApkInstaller(file)
+    }
+
+    private fun canInstallPackages(): Boolean {
+        return Build.VERSION.SDK_INT < Build.VERSION_CODES.O || packageManager.canRequestPackageInstalls()
+    }
+
+    private fun openUnknownSourcesSettings() {
+        val intent = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES, Uri.parse("package:$packageName"))
+        } else {
+            Intent(Settings.ACTION_SECURITY_SETTINGS)
+        }
+        startActivity(intent)
+    }
+
+    private fun launchApkInstaller(file: File) {
+        val apkUri = Uri.Builder()
+            .scheme("content")
+            .authority("$packageName.updateprovider")
+            .appendPath(file.name)
+            .build()
+        val intent = Intent(Intent.ACTION_VIEW).apply {
+            setDataAndType(apkUri, "application/vnd.android.package-archive")
+            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        }
+        startActivity(intent)
+    }
+
+    private fun itemCard(item: PageItem, clickableCard: Boolean = false): View {
         val card = LinearLayout(this)
         card.orientation = LinearLayout.VERTICAL
         card.setPadding(dp(16), dp(16), dp(16), dp(16))
         card.background = rounded(cardColor(), 18, strokeColor())
+        if (clickableCard && item.actionUrl.isNotBlank()) {
+            card.isClickable = true
+            card.isFocusable = true
+            card.setOnClickListener {
+                card.animate().scaleX(0.985f).scaleY(0.985f).setDuration(70).withEndAction {
+                    card.animate().scaleX(1f).scaleY(1f).setDuration(90).start()
+                    openInternalAction(item.actionUrl)
+                }.start()
+            }
+        }
 
         val header = LinearLayout(this)
         header.orientation = LinearLayout.HORIZONTAL
@@ -1227,7 +1691,30 @@ class MainActivity : Activity() {
             titleWrap.addView(subtitle)
         }
 
+        if (clickableCard && item.actionUrl.isNotBlank()) {
+            val hint = TextView(this)
+            hint.text = "Dotknij, aby otworzyc"
+            hint.textSize = 12f
+            hint.setTextColor(Color.rgb(14, 165, 180))
+            hint.setPadding(0, dp(6), 0, 0)
+            titleWrap.addView(hint)
+        }
+
         header.addView(titleWrap, LinearLayout.LayoutParams(0, -2, 1f))
+        if (clickableCard && item.actionUrl.isNotBlank()) {
+            val chevron = TextView(this)
+            chevron.text = ">"
+            chevron.textSize = 18f
+            chevron.setTypeface(null, 1)
+            chevron.setTextColor(Color.rgb(14, 165, 180))
+            chevron.gravity = Gravity.CENTER
+            chevron.background = rounded(
+                if (darkMode) Color.rgb(15, 23, 42) else Color.rgb(236, 254, 255),
+                14,
+                Color.rgb(14, 165, 180)
+            )
+            header.addView(chevron, LinearLayout.LayoutParams(dp(34), dp(34)).apply { setMargins(dp(10), dp(4), 0, 0) })
+        }
         card.addView(header)
 
         if (item.value.isNotBlank()) {
@@ -1246,7 +1733,7 @@ class MainActivity : Activity() {
             card.addView(value)
         }
 
-        if (item.actionUrl.isNotBlank() || item.secondActionUrl.isNotBlank()) {
+        if (!clickableCard && (item.actionUrl.isNotBlank() || item.secondActionUrl.isNotBlank())) {
             val row = LinearLayout(this)
             row.orientation = LinearLayout.HORIZONTAL
 
@@ -1298,6 +1785,20 @@ class MainActivity : Activity() {
             dateView.setTextColor(mutedColor())
             dateView.setPadding(dp(10), 0, 0, 0)
             meta.addView(dateView)
+        }
+
+        val metaSpacer = View(this)
+        meta.addView(metaSpacer, LinearLayout.LayoutParams(0, 1, 1f))
+
+        if (item.cornerText.isNotBlank()) {
+            val corner = TextView(this)
+            corner.text = item.cornerText
+            corner.textSize = 11f
+            corner.setTypeface(null, 1)
+            corner.setTextColor(Color.WHITE)
+            corner.setPadding(dp(8), dp(4), dp(8), dp(4))
+            corner.background = rounded(Color.rgb(22, 163, 74), 9, 0)
+            meta.addView(corner)
         }
         card.addView(meta)
 
@@ -1384,7 +1885,7 @@ class MainActivity : Activity() {
             else -> "$baseUrl/$url"
         }
 
-        if (AppConfig.isPortalUrl(fixed)) {
+        if (fixed.startsWith(baseUrl)) {
             openPortalPage(fixed)
         } else {
             startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(fixed)))
@@ -1421,7 +1922,23 @@ class MainActivity : Activity() {
                 showAdvancedDiagnosticsChoice()
                 return
             }
+            "app://about" -> {
+                loadAboutPage()
+                return
+            }
+            "app://about/check" -> {
+                loadAboutPage(forceCheck = true)
+                return
+            }
             else -> {
+                if (url.startsWith("app://about/download")) {
+                    startUpdateDownload(url)
+                    return
+                }
+                if (url.startsWith("app://billing/details/")) {
+                    showBillingDetails(url.removePrefix("app://billing/details/"))
+                    return
+                }
                 if (url.startsWith("app://confirm-buy")) {
                     showBuyConfirmation(url)
                     return
@@ -1467,13 +1984,14 @@ class MainActivity : Activity() {
 
         when {
             path.startsWith("packets.php") -> loadNativePage(pathWithQuery, "Pakiety") { parsePackets(it) }
+            path.startsWith("balance_history.php") -> loadNativePage(pathWithQuery, "Historia zakupow") { parseBillingHistory(it) }
             path.startsWith("tuner_settings.php") -> {
                 pendingM3uUser = Uri.parse(fixed).getQueryParameter("selected_user")
                     ?.let { URLDecoder.decode(it, "UTF-8") }
                     .orEmpty()
                 loadNativePage(pathWithQuery, "Linki M3U") { parseM3u(it) }
             }
-            (fixed.startsWith("http://") || fixed.startsWith("https://")) && !AppConfig.isPortalUrl(fixed) ->
+            fixed.startsWith("http://") || fixed.startsWith("https://") && !fixed.startsWith(baseUrl) ->
                 startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(fixed)))
             else -> openPortalPage(fixed)
         }
@@ -1484,9 +2002,7 @@ class MainActivity : Activity() {
         connection.requestMethod = "GET"
         connection.setRequestProperty("User-Agent", "Mozilla/5.0 PlusXMobile Android")
         connection.setRequestProperty("Accept", "text/html,application/xhtml+xml")
-        if (cookieHeader.isNotBlank()) {
-            connection.setRequestProperty("Cookie", cookieHeader)
-        }
+        connection.setRequestProperty("Cookie", cookieHeader)
         connection.connectTimeout = 30000
         connection.readTimeout = 60000
         return connection.inputStream.bufferedReader(Charsets.UTF_8).use { it.readText() }
@@ -1494,7 +2010,12 @@ class MainActivity : Activity() {
     }
 
     private fun getJson(address: String, token: String): String {
-        val connection = AppConfig.requireBackendUrl(address).openConnection() as HttpURLConnection
+        val url = if (token.isBlank()) {
+            URI(address).toURL()
+        } else {
+            AppConfig.requireBackendUrl(address)
+        }
+        val connection = url.openConnection() as HttpURLConnection
         connection.requestMethod = "GET"
         connection.setRequestProperty("User-Agent", "PlusXMobile Android")
         connection.setRequestProperty("Accept", "application/json")
@@ -1522,10 +2043,15 @@ class MainActivity : Activity() {
         val chunk = html.substring(markerIndex, minOf(html.length, markerIndex + 700))
             .replace("&euro;", "\u20AC")
             .replace("&#8364;", "\u20AC")
+            .replace("&nbsp;", " ")
+            .replace("&#160;", " ")
             .replace(Regex("<[^>]+>"), " ")
             .replace(Regex("\\s+"), " ")
 
-        return Regex("(\\d+(?:[.,]\\d{1,2})?)\\s*(?:\\u20AC|EUR)").find(chunk)?.value
+        return Regex("(\\d+(?:[.,]\\d{1,2})?)\\s*(?:\\u20AC|EUR)", RegexOption.IGNORE_CASE)
+            .find(chunk)
+            ?.value
+            ?: Regex("\\b\\d+(?:[.,]\\d{1,2})\\b").find(chunk.substringAfter("Your balance", chunk))?.value?.let { "$it €" }
     }
 
     private fun parseProfile(html: String): List<PageItem> {
@@ -1534,16 +2060,14 @@ class MainActivity : Activity() {
             .find(safeHtml)?.groupValues?.get(1).orEmpty()
         val email = Regex("<label>Email Address:</label>.*?<input[^>]+value=\"([^\"]*)\"", RegexOption.DOT_MATCHES_ALL)
             .find(safeHtml)?.groupValues?.get(1).orEmpty()
-        val ip = Regex("name=\"client_ip\"\\s+value=\"([^\"]*)\"").find(safeHtml)?.groupValues?.get(1).orEmpty()
-        val ipLock = if (safeHtml.contains("name=\"check_by_ip\"") && safeHtml.contains("checked")) "Wlaczone" else "Wylaczone"
 
         val items = listOf(
             PageItem("Wyglad aplikacji", "Aktualnie: ${if (darkMode) "tryb ciemny" else "tryb jasny"}"),
             PageItem("Username", value = username.ifBlank { "Brak" }),
-            PageItem("Email", "Zmiana emaila jest zablokowana po stronie panelu.", email.ifBlank { "Brak" }),
-            PageItem("Blokada po IP", "Client IP: $ip", ipLock),
+            PageItem("Email", "Aby zmienic email skontaktuj sie z supportem PlusX.", email.ifBlank { "Brak" }),
             PageItem("Zmien haslo", "Otwiera bezpieczny formularz portalu w WebView.", actionUrl = "/profile.php", actionLabel = "Otworz"),
             PageItem("Zarzadzaj 2FA", "Kod QR i sekret zostaja tylko po stronie portalu.", actionUrl = "/profile.php", actionLabel = "Otworz"),
+            PageItem("O aplikacji", "Wersja aplikacji, aktualizacje i ostatnie zmiany z GitHuba.", actionUrl = "app://about", actionLabel = "Otworz"),
             PageItem("Diagnostyka", "Dane do pomocy technicznej. Bez doładowań, ustawien i bez prywatnych adresow IP.", actionUrl = "app://diagnostics", actionLabel = "Otworz")
         )
         lastSettingsItems = items
@@ -1563,6 +2087,307 @@ class MainActivity : Activity() {
         )
     }
 
+    private fun parseBillingHistory(html: String): List<PageItem> {
+        val clean = cleanText(html)
+        val dateRegex = Regex("(\\d{2}\\.\\d{2}\\.\\d{4}\\s+\\d{2}:\\d{2})")
+        val matches = dateRegex.findAll(clean).toList()
+        if (matches.isEmpty()) {
+            currentBillingEntries = emptyList()
+            currentBillingUsers = emptyList()
+            return listOf(PageItem("Brak historii", "Nie znaleziono wpisow rozliczen."))
+        }
+
+        currentBillingMainUser = parseDashboardUsername(lastDashboardHtml)
+        val entries = matches.mapIndexedNotNull { index, match ->
+            val start = match.range.first
+            val end = matches.getOrNull(index + 1)?.range?.first ?: clean.length
+            val block = clean.substring(start, end).trim()
+            parseBillingHistoryEntryData(block)
+        }.take(1000)
+
+        currentBillingEntries = entries
+        currentBillingUsers = billingKnownUsers(entries)
+        if (currentBillingSelectedUser.isNotBlank() && currentBillingUsers.none { accountStatusKey(it) == accountStatusKey(currentBillingSelectedUser) }) {
+            currentBillingSelectedUser = ""
+        }
+
+        val packageHints = entries
+            .mapNotNull { entry ->
+                val user = accountStatusKey(entry.user)
+                val direct = directBillingPackageName(kotlin.math.abs(entry.amount))
+                if (user.isNotBlank() && direct.isNotBlank()) user to direct else null
+            }
+            .groupBy({ it.first }, { it.second })
+            .mapValues { (_, packages) -> packages.groupingBy { it }.eachCount().maxByOrNull { it.value }?.key.orEmpty() }
+
+        return entries.map { entry ->
+            billingHistoryItem(entry, packageHints[accountStatusKey(entry.user)].orEmpty())
+        }.ifEmpty {
+            listOf(PageItem("Brak historii", "Nie udalo sie odczytac wpisow rozliczen."))
+        }
+    }
+
+    private data class BillingHistoryEntry(
+        val date: String,
+        val amount: Double,
+        val user: String,
+        val reason: String
+    )
+
+    private fun billingKnownUsers(entries: List<BillingHistoryEntry>): List<String> {
+        return (
+            entries.map { it.user }.filter { it.isNotBlank() && isLikelyBillingUser(it) } +
+                listOf(currentBillingMainUser).filter { it.isNotBlank() } +
+                resellerAccountDetails.values.map { it.login }
+            )
+            .distinctBy { accountStatusKey(it) }
+            .sortedWith(compareBy<String> {
+                when {
+                    accountStatusKey(it) == accountStatusKey(currentBillingMainUser) -> 0
+                    resellerAccountDetails.containsKey(accountStatusKey(it)) -> 1
+                    else -> 2
+                }
+            }.thenBy { cleanSelectedUser(it).lowercase(Locale.ROOT) })
+    }
+
+    private fun billingHistoryItemsForSelectedUser(): List<PageItem> {
+        val selectedKey = accountStatusKey(currentBillingSelectedUser)
+        val entries = currentBillingEntries.filter {
+            selectedKey.isBlank() || accountStatusKey(it.user) == selectedKey
+        }
+        if (entries.isEmpty()) return emptyList()
+
+        val hints = billingPackageHints(currentBillingEntries)
+        val items = mutableListOf<PageItem>()
+        var index = 0
+        while (index < entries.size) {
+            val entry = entries[index]
+            if (entry.amount > 0) {
+                val group = mutableListOf(entry)
+                var next = index + 1
+                while (next < entries.size && entries[next].amount > 0 && accountStatusKey(entries[next].user) == accountStatusKey(entry.user)) {
+                    group.add(entries[next])
+                    next += 1
+                }
+                items.add(billingTopupGroupItem(group))
+                index = next
+            } else {
+                items.add(billingHistoryItem(entry, hints[accountStatusKey(entry.user)].orEmpty()))
+                index += 1
+            }
+        }
+        return items
+    }
+
+    private fun billingPackageHints(entries: List<BillingHistoryEntry>): Map<String, String> {
+        return entries
+            .mapNotNull { entry ->
+                val user = accountStatusKey(entry.user)
+                val direct = directBillingPackageName(kotlin.math.abs(entry.amount))
+                if (user.isNotBlank() && direct.isNotBlank() && entry.amount < 0) user to direct else null
+            }
+            .groupBy({ it.first }, { it.second })
+            .mapValues { (_, packages) -> packages.groupingBy { it }.eachCount().maxByOrNull { it.value }?.key.orEmpty() }
+    }
+
+    private fun billingTopupGroupItem(group: List<BillingHistoryEntry>): PageItem {
+        val total = group.sumOf { it.amount }
+        val user = group.firstOrNull()?.user.orEmpty()
+        val id = "topup_${billingDetails.size}_${System.currentTimeMillis()}"
+        val details = buildString {
+            appendLine("Doladowanie konta")
+            appendLine("Liczba wpisow: ${group.size}")
+            appendLine("Suma: ${formatEuroAmount(total)}")
+            if (user.isNotBlank()) appendLine("Uzytkownik: $user")
+            appendLine()
+            appendLine("Szczegoly:")
+            group.forEach {
+                appendLine("- ${billingDateForDisplay(it.date)}: ${formatEuroAmount(it.amount)}")
+            }
+        }.trim()
+        billingDetails[id] = details
+        return PageItem(
+            title = if (group.size > 1) "Doladowania konta" else "Doladowanie konta",
+            subtitle = billingDateForDisplay(group.first().date),
+            value = listOf(
+                "Suma: ${formatEuroAmount(total)}",
+                if (group.size > 1) "Polaczono wpisow: ${group.size}" else "Kwota doladowania: ${formatEuroAmount(total)}",
+                if (user.isNotBlank()) "Uzytkownik: $user" else ""
+            ).filter { it.isNotBlank() }.joinToString("\n"),
+            actionUrl = "app://billing/details/$id",
+            actionLabel = "Szczegoly",
+            badgeText = "+"
+        )
+    }
+
+    private fun parseBillingHistoryEntryData(block: String): BillingHistoryEntry? {
+        val date = Regex("(\\d{2}\\.\\d{2}\\.\\d{4}\\s+\\d{2}:\\d{2})").find(block)?.groupValues?.get(1) ?: return null
+        val amountRaw = Regex("([+-]\\d+(?:[.,]\\d+)?)").find(block.substringAfter(date))?.groupValues?.get(1) ?: return null
+        val amount = amountRaw.replace(",", ".").toDoubleOrNull() ?: return null
+        val user = extractBillingUser(block)
+        val reason = when {
+            amount > 0 -> "Doladowanie konta"
+            block.contains("Purchase of package", true) -> "Zakup pakietu"
+            else -> "Operacja na koncie"
+        }
+        return BillingHistoryEntry(date, amount, user, reason)
+    }
+
+    private fun billingHistoryItem(entry: BillingHistoryEntry, userPackageHint: String): PageItem {
+        val rounded = formatEuroAmount(entry.amount)
+        val details = if (entry.amount > 0) {
+            "Kwota doladowania: $rounded"
+        } else {
+            probablePackageByPrice(kotlin.math.abs(entry.amount), userPackageHint)
+        }
+        val id = "entry_${billingDetails.size}_${entry.date.replace(Regex("[^0-9]"), "")}"
+        billingDetails[id] = listOf(
+            entry.reason,
+            "Data: ${billingDateForDisplay(entry.date)}",
+            "Kwota: $rounded",
+            details,
+            if (entry.user.isNotBlank()) "Uzytkownik: ${entry.user}" else ""
+        ).filter { it.isNotBlank() }.joinToString("\n")
+        val value = listOf(
+            "Kwota: $rounded",
+            details,
+            if (entry.user.isNotBlank()) "Uzytkownik: ${entry.user}" else ""
+        ).filter { it.isNotBlank() }.joinToString("\n")
+
+        return PageItem(
+            title = entry.reason,
+            subtitle = billingDateForDisplay(entry.date),
+            value = value,
+            actionUrl = "app://billing/details/$id",
+            actionLabel = "Szczegoly",
+            badgeText = if (entry.amount > 0) "+" else "-"
+        )
+    }
+
+    private fun showBillingDetails(id: String) {
+        val details = billingDetails[id].orEmpty()
+        AlertDialog.Builder(this)
+            .setTitle("Szczegoly historii")
+            .setMessage(details.ifBlank { "Brak szczegolow dla tego wpisu." })
+            .setPositiveButton("OK", null)
+            .show()
+    }
+
+    private fun extractBillingUser(block: String): String {
+        val protectedEmail = Regex("[A-Z0-9._%+-]+@[A-Z0-9.-]+\\.[A-Z]{2,}", RegexOption.IGNORE_CASE)
+            .find(block)
+            ?.value
+        if (!protectedEmail.isNullOrBlank()) return protectedEmail
+        val knownUsers = (resellerAccountDetails.values.map { it.login } + currentBillingMainUser)
+            .filter { it.isNotBlank() }
+            .sortedByDescending { it.length }
+        knownUsers.firstOrNull { known ->
+            Regex("(^|\\s|>)${Regex.escape(known)}($|\\s|<)", RegexOption.IGNORE_CASE).containsMatchIn(block)
+        }?.let { return it }
+        return Regex("(?:user_[A-Za-z0-9]+|s[a-f0-9]{7,}|\\b[a-f0-9]{10,16}\\b)", RegexOption.IGNORE_CASE)
+            .findAll(block)
+            .map { it.value }
+            .filter { isLikelyBillingUser(it) }
+            .firstOrNull()
+            .orEmpty()
+    }
+
+    private fun isLikelyBillingUser(value: String): Boolean {
+        val clean = cleanSelectedUser(value).trim()
+        if (clean.isBlank()) return false
+        if (clean.contains("@")) return true
+        if (clean.startsWith("user_", ignoreCase = true)) return true
+        if (Regex("^s[a-f0-9]{7,}$", RegexOption.IGNORE_CASE).matches(clean)) return true
+        if (Regex("^[a-f0-9]{10,16}$", RegexOption.IGNORE_CASE).matches(clean)) return true
+        return false
+    }
+
+    private fun formatEuroAmount(value: Double): String {
+        return String.format(Locale.US, "%+.2f EUR", value)
+    }
+
+    private fun probablePackageByPrice(amount: Double, userPackageHint: String = ""): String {
+        directBillingPackageMatch(amount)?.let { return it }
+
+        val prices = listOf(
+            4.80 to "Poland Full HD - 30 dni",
+            50.00 to "Poland Full HD - 1 rok",
+            6.90 to "Poland Full HD (2 devices) - 30 dni",
+            70.00 to "Poland Full HD (2 devices) - 1 rok",
+            6.60 to "Poland Full HD (XXX) - 30 dni",
+            8.40 to "Poland Full HD (XXX) (2 devices) - 30 dni"
+        )
+        if (userPackageHint.isNotBlank()) {
+            prices.firstOrNull { it.second == userPackageHint }?.let { (basePrice, name) ->
+                val discounts = listOf(10 to 0.90, 20 to 0.80, 50 to 0.50)
+                val nearestDiscount = discounts
+                    .map { (discount, multiplier) -> BillingPriceCandidate(name, basePrice, discount, basePrice * multiplier, kotlin.math.abs((basePrice * multiplier) - amount)) }
+                    .minByOrNull { it.delta }
+                if (nearestDiscount != null && nearestDiscount.delta <= 0.55) {
+                    return "Prawdopodobny pakiet: $name, po historii uzytkownika, mozliwy rabat ${nearestDiscount.discount}%\nCena bazowa: ${String.format(Locale.US, "%.2f EUR", basePrice)}"
+                }
+            }
+        }
+        val discounts = listOf(0 to 1.0, 10 to 0.90, 20 to 0.80, 50 to 0.50)
+        val candidates = prices.flatMap { (basePrice, name) ->
+            discounts.map { (discount, multiplier) ->
+                BillingPriceCandidate(
+                    packageName = name,
+                    basePrice = basePrice,
+                    discount = discount,
+                    expected = basePrice * multiplier,
+                    delta = kotlin.math.abs((basePrice * multiplier) - amount)
+                )
+            }
+        }
+        val nearest = candidates.minByOrNull { it.delta }
+        return if (nearest != null && nearest.delta <= 0.45) {
+            val discountText = if (nearest.discount > 0) ", mozliwy rabat ${nearest.discount}%" else ""
+            "Prawdopodobny pakiet: ${nearest.packageName}$discountText\nCena bazowa: ${String.format(Locale.US, "%.2f EUR", nearest.basePrice)}"
+        } else {
+            "Prawdopodobny pakiet: nieznany"
+        }
+    }
+
+    private fun directBillingPackageMatch(amount: Double): String? {
+        val name = directBillingPackageName(amount)
+        val price = when (name) {
+            "Poland Full HD - 30 dni" -> "4.80 EUR"
+            "Poland Full HD (XXX) - 30 dni" -> "6.60 EUR"
+            "Poland Full HD (2 devices) - 30 dni" -> "6.90 EUR"
+            "Poland Full HD (XXX) (2 devices) - 30 dni" -> "8.40 EUR"
+            "Poland Full HD - 1 rok" -> "50.00 EUR"
+            "Poland Full HD (2 devices) - 1 rok" -> "70.00 EUR"
+            else -> ""
+        }
+        return if (name.isNotBlank()) "Prawdopodobny pakiet: $name\nCena bazowa: $price" else null
+    }
+
+    private fun directBillingPackageName(amount: Double): String {
+        return when (amount) {
+            in 4.45..5.05 -> "Poland Full HD - 30 dni"
+            in 6.50..6.64 -> "Poland Full HD (XXX) - 30 dni"
+            in 6.65..7.10 -> "Poland Full HD (2 devices) - 30 dni"
+            in 8.05..8.75 -> "Poland Full HD (XXX) (2 devices) - 30 dni"
+            in 48.00..52.00 -> "Poland Full HD - 1 rok"
+            in 67.00..73.00 -> "Poland Full HD (2 devices) - 1 rok"
+            else -> null
+        }.orEmpty()
+    }
+
+    private data class BillingPriceCandidate(
+        val packageName: String,
+        val basePrice: Double,
+        val discount: Int,
+        val expected: Double,
+        val delta: Double
+    )
+
+    private fun billingDateForDisplay(value: String): String {
+        val match = Regex("(\\d{2})\\.(\\d{2})\\.(\\d{4})\\s+(\\d{2}:\\d{2})").find(value) ?: return value
+        return "${displayDate(match.groupValues[3], match.groupValues[2], match.groupValues[1])} ${match.groupValues[4]}"
+    }
+
     private fun parsePackets(html: String): List<PageItem> {
         val users = parseSelectedUsers(html)
         if (users.isNotEmpty()) {
@@ -1572,6 +2397,8 @@ class MainActivity : Activity() {
             currentPacketsSelectedUser = users.firstOrNull().orEmpty()
         }
         val selectedUser = currentPacketsSelectedUser.trim()
+        val resellerKnownActive = resellerAccountActivity[accountStatusKey(selectedUser)]
+        var activePacket = ""
         val packets = html
             .split(Regex("(?=<div\\b[^>]*class=[\"'][^\"']*packet-item[^\"']*[\"'])", RegexOption.IGNORE_CASE))
             .asSequence()
@@ -1586,7 +2413,11 @@ class MainActivity : Activity() {
                     ?.groupValues
                     ?.get(1)
                     .orEmpty()
-                val status = if (ends.isNotBlank()) "Aktywny" else "Nieaktywny"
+                val isActive = ends.isNotBlank() && resellerKnownActive != false
+                val status = if (isActive) "Aktywny" else "Nieaktywny"
+                if (isActive && activePacket.isBlank() && name.isNotBlank()) {
+                    activePacket = name
+                }
                 val isTwoDevices = name.contains("2 devices", true) || name.contains("two devices", true)
                 val isXxx = name.contains("XXX", true)
                 val monthlyPrice = when {
@@ -1607,7 +2438,7 @@ class MainActivity : Activity() {
                     title = name.ifBlank { "Pakiet" },
                     subtitle = status,
                     value = listOf(
-                        if (ends.isNotBlank()) "Wygasa: $ends" else ""
+                        if (isActive && ends.isNotBlank()) "Wygasa: $ends" else ""
                     ).filter { it.isNotBlank() }.joinToString("\n"),
                     actionUrl = buyConfirmUrl(monthUrl, name, "miesiac", monthlyPrice),
                     actionLabel = "Kup na Miesiąc\n${monthlyPrice.ifBlank { "Cena z portalu" }}",
@@ -1617,7 +2448,15 @@ class MainActivity : Activity() {
             }
             .filter { it.title.isNotBlank() }
             .toList()
+        currentPacketsActivePacket = activePacket
         return packets
+    }
+
+    private fun accountStatusKey(value: String): String {
+        return cleanSelectedUser(value)
+            .ifBlank { value }
+            .trim()
+            .lowercase(Locale.ROOT)
     }
 
     private fun parseSelectedUsers(html: String): List<String> {
@@ -1806,6 +2645,21 @@ class MainActivity : Activity() {
         val period = uri.getQueryParameter("period").orEmpty().ifBlank { "okres" }
         val price = uri.getQueryParameter("price").orEmpty().ifBlank { "Cena z portalu" }
         val user = cleanSelectedUser(currentPacketsSelectedUser).ifBlank { "Konto glowne" }
+        val activePacket = currentPacketsActivePacket.trim()
+
+        if (activePacket.isNotBlank() && !activePacket.equals(packet, ignoreCase = true)) {
+            AlertDialog.Builder(this)
+                .setTitle("Nie mozna wykupic pakietu")
+                .setMessage(
+                    "Na tym koncie jest juz aktywny pakiet:\n\n" +
+                        "$activePacket\n\n" +
+                        "Nie mozesz wykupic innego pakietu, dopoki obecny sie nie skonczy. " +
+                        "Jesli chcesz anulowac lub zmienic pakiet, skontaktuj sie z supportem PlusX."
+                )
+                .setPositiveButton("OK", null)
+                .show()
+            return
+        }
 
         AlertDialog.Builder(this)
             .setTitle("Potwierdz zakup")
@@ -1864,6 +2718,7 @@ class MainActivity : Activity() {
         val date = root.optString("date")
         val messages = root.optJSONArray("messages") ?: JSONArray()
         val items = mutableListOf<Pair<Long, PageItem>>()
+        val now = System.currentTimeMillis()
         for (index in 0 until messages.length()) {
             val event = messages.optJSONObject(index) ?: continue
             val text = event.optString("text")
@@ -1889,6 +2744,17 @@ class MainActivity : Activity() {
                 ?.substringAfter(":")
                 ?.trim()
                 .orEmpty()
+            val startMillis = epgTimestamp(startRaw)
+            val endMillis = epgTimestamp(endRaw)
+            if (endMillis > 0L && endMillis < now) {
+                continue
+            }
+            val progressText = if (startMillis > 0L && endMillis > 0L && now in startMillis..endMillis) {
+                val minute = (((now - startMillis) / 60000L) + 1L).coerceAtLeast(1L)
+                "Trwa teraz · ${minute} min"
+            } else {
+                ""
+            }
             val bitrate = lines.firstOrNull { it.contains("Bitrate", true) }
                 ?.removeTelegramIcons()
                 ?.substringAfter(":")
@@ -1904,12 +2770,13 @@ class MainActivity : Activity() {
                 bitrate.takeIf { it.isNotBlank() }?.let { "Bitrate: $it" }
             ).filterNotNull().joinToString("\n")
             items.add(
-                epgTimestamp(startRaw) to
+                startMillis to
                 PageItem(
                     title = title,
                     subtitle = listOf("EPG", displayDateFromIsoDate(date)).filter { it.isNotBlank() }.joinToString(" · "),
                     value = value.ifBlank { formatNewsText(text) },
-                    badgeText = "EPG"
+                    badgeText = "EPG",
+                    cornerText = progressText
                 )
             )
         }
@@ -2316,8 +3183,16 @@ class MainActivity : Activity() {
     }
 
     private fun sanitizeDiagnosticContent(content: String, contactEmail: String): String {
-        return DiagnosticSanitizer.sanitize(content, contactEmail)
+        return content
+            .replace(Regex("(?i)(ssn=)[^;\\s\"'&<]+"), "$1[usunieto]")
+            .replace(Regex("(?i)(Authorization:\\s*Bearer\\s+)[A-Za-z0-9._\\-]+"), "$1[usunieto]")
+            .replace(Regex("(?i)(password|passwd|token|secret|api_hash)([\"'\\s:=]+)([^\"'\\s<>&]+)"), "$1$2[usunieto]")
+            .replace(Regex("\\b(?:\\d{1,3}\\.){3}\\d{1,3}\\b"), "[ip-usuniete]")
+            .replace(Regex("[A-Z0-9._%+-]+@[A-Z0-9.-]+\\.[A-Z]{2,}", RegexOption.IGNORE_CASE)) {
+                if (it.value.equals(contactEmail, ignoreCase = true)) it.value else "[email-usuniety]"
+            }
     }
+
     private fun shareDiagnostics(title: String, content: String) {
         copyToClipboard(content)
         val intent = Intent(Intent.ACTION_SEND).apply {
@@ -2371,12 +3246,6 @@ class MainActivity : Activity() {
         }.start()
     }
 
-    private fun setBackendAuthorization(connection: HttpURLConnection, token: String) {
-        if (token.isNotBlank()) {
-            connection.setRequestProperty("Authorization", "Bearer $token")
-        }
-    }
-
     private fun postJson(address: String, token: String, body: String): String {
         val connection = AppConfig.requireBackendUrl(address).openConnection() as HttpURLConnection
         connection.requestMethod = "POST"
@@ -2395,8 +3264,46 @@ class MainActivity : Activity() {
         return text
     }
 
+    private fun setBackendAuthorization(connection: HttpURLConnection, token: String) {
+        if (token.isNotBlank()) {
+            connection.setRequestProperty("Authorization", "Bearer $token")
+        }
+    }
+
     private fun isValidContactEmail(value: String): Boolean {
         return value.length > 3 && value.contains("@") && Regex("^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$").matches(value)
+    }
+
+    private fun isRemoteVersionNewer(remote: String, current: String): Boolean {
+        val remoteParts = versionParts(remote)
+        val currentParts = versionParts(current)
+        val max = maxOf(remoteParts.size, currentParts.size)
+        for (index in 0 until max) {
+            val left = remoteParts.getOrElse(index) { 0 }
+            val right = currentParts.getOrElse(index) { 0 }
+            if (left > right) return true
+            if (left < right) return false
+        }
+        return false
+    }
+
+    private fun versionParts(value: String): List<Int> {
+        return value
+            .trim()
+            .removePrefix("v")
+            .split(Regex("[^0-9]+"))
+            .filter { it.isNotBlank() }
+            .map { it.toIntOrNull() ?: 0 }
+    }
+
+    private fun String.cleanMarkdownForApp(): String {
+        return replace("\r\n", "\n")
+            .replace(Regex("^#{1,6}\\s*", RegexOption.MULTILINE), "")
+            .replace(Regex("`([^`]+)`"), "$1")
+            .replace(Regex("\\*\\*([^*]+)\\*\\*"), "$1")
+            .replace(Regex("\\[([^]]+)]\\(([^)]+)\\)"), "$1")
+            .replace(Regex("\\n{3,}"), "\n\n")
+            .trim()
     }
 
     private fun appVersionLabel(): String {
@@ -2404,6 +3311,12 @@ class MainActivity : Activity() {
             val info = packageManager.getPackageInfo(packageName, 0)
             "${info.versionName} (${info.longVersionCode})"
         }.getOrElse { "brak danych" }
+    }
+
+    private fun appVersionName(): String {
+        return runCatching {
+            packageManager.getPackageInfo(packageName, 0).versionName.orEmpty()
+        }.getOrElse { "" }
     }
 
     private fun screenResolutionLabel(): String {
@@ -2426,7 +3339,6 @@ class MainActivity : Activity() {
 
     @SuppressLint("SetJavaScriptEnabled")
     private fun openPortalPage(url: String) {
-        val safeUrl = AppConfig.requirePortalUrl(url).toString()
         root.removeAllViews()
         currentScreen = "web"
         currentWebView = null
@@ -2452,7 +3364,7 @@ class MainActivity : Activity() {
         container.addView(webView, LinearLayout.LayoutParams(-1, 0, 1f))
 
         root.addView(container)
-        webView.loadUrl(safeUrl, mapOf("Cookie" to cookieHeader))
+        webView.loadUrl(url, mapOf("Cookie" to cookieHeader))
     }
 
     private fun dp(value: Int): Int {
@@ -2482,3 +3394,4 @@ class MainActivity : Activity() {
         }
     }
 }
+

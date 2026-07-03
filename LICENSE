@@ -1,105 +1,21 @@
-PlusX Mobile Source-Available License v1.0
+MIT License
 
 Copyright (c) 2026 Torvinek
-All rights reserved.
 
-IMPORTANT: THIS IS NOT AN OPEN-SOURCE LICENSE.
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
 
-The source code and accompanying files of PlusX Mobile (the "Software") are
-made publicly visible solely for transparency, private security review,
-personal examination, and local testing. No rights are granted except those
-expressly stated below.
-
-1. LIMITED PERMISSION
-
-You may:
-
-(a) view and inspect the Software in the official repository;
-(b) download or clone one private local copy solely for personal security
-    review, educational examination, and local testing;
-(c) build and run a private local copy solely for your own non-commercial
-    testing; and
-(d) quote the minimum amount of code reasonably necessary in a private
-    security report sent to the copyright holder.
-
-2. PROHIBITED USES
-
-Without prior written permission from the copyright holder, you may not:
-
-(a) copy, mirror, republish, upload, synchronize, import, or otherwise place
-    the Software, in whole or in substantial part, in another repository,
-    website, archive, package registry, file-sharing service, or distribution
-    channel;
-(b) create, maintain, or publish a public mirror, independent fork, unofficial
-    continuation, or alternative distribution of the Software;
-(c) redistribute the Software or any substantial portion of it, whether in
-    original, modified, translated, obfuscated, or compiled form;
-(d) distribute, rehost, sell, sublicense, publish, or make available any APK,
-    application bundle, binary, or installer built from the Software;
-(e) create or distribute derivative applications, products, or services based
-    on the Software;
-(f) use the Software or any derivative for commercial purposes, paid services,
-    advertising, resale, or monetized distribution;
-(g) remove, hide, alter, or misrepresent copyright, authorship, license,
-    security, or attribution notices;
-(h) use the names "PlusX Mobile", "Torvinek", the project logos, visual
-    identity, or release assets in a way that suggests an official or approved
-    distribution;
-(i) extract, publish, disclose, misuse, or attempt to obtain credentials,
-    tokens, signing keys, backend secrets, Telegram sessions, user data, or
-    other protected information; or
-(j) use the Software to violate the rights, terms of service, systems, or data
-    of any third party.
-
-3. OFFICIAL REPOSITORY AND PLATFORM FUNCTIONALITY
-
-The official repository is:
-
-https://github.com/Torvinek/PlusX-Mobile
-
-GitHub may technically allow viewing and forking of public repositories under
-its own Terms of Service. This license does not grant permission to publish,
-maintain, promote, or distribute such a fork as an independent project, nor to
-redistribute the Software outside the limited permissions stated in Section 1.
-
-4. CONTRIBUTIONS
-
-Unless a separate written agreement applies, by submitting a pull request,
-patch, or other contribution to the official repository, you represent that
-you have the right to submit it and grant the copyright holder a perpetual,
-worldwide, irrevocable, royalty-free right to use, reproduce, modify,
-distribute, sublicense, and include that contribution in the Software under
-any terms chosen by the copyright holder.
-
-5. THIRD-PARTY COMPONENTS
-
-Third-party libraries, tools, trademarks, logos, services, and other materials
-remain subject to their own licenses and rights. This license applies only to
-material owned by the copyright holder and does not override third-party
-licenses.
-
-6. NO WARRANTY
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
 
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO WARRANTIES OF MERCHANTABILITY, FITNESS
-FOR A PARTICULAR PURPOSE, NON-INFRINGEMENT, AVAILABILITY, SECURITY, OR
-ACCURACY. USE OF THE SOFTWARE IS AT YOUR OWN RISK.
-
-7. LIMITATION OF LIABILITY
-
-TO THE MAXIMUM EXTENT PERMITTED BY LAW, THE COPYRIGHT HOLDER SHALL NOT BE
-LIABLE FOR ANY CLAIM, LOSS, DAMAGE, DATA LOSS, SERVICE INTERRUPTION, ACCOUNT
-ISSUE, OR OTHER LIABILITY ARISING FROM OR RELATED TO THE SOFTWARE OR ITS USE.
-
-8. TERMINATION
-
-Any permission granted by this license terminates automatically upon violation
-of its terms. Upon termination, you must stop using the Software and delete all
-copies in your possession or control, except where retention is required by
-law.
-
-9. ADDITIONAL PERMISSION
-
-Any use not expressly permitted by this license requires prior written
-permission from the copyright holder. Permission may be requested through the
-official repository owner, Torvinek.
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
