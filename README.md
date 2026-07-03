@@ -44,7 +44,7 @@
 ---
 
 > [!IMPORTANT]
-> **PlusX Mobile jest projektem niezależnym i nieoficjalnym.** Nie jest własnością operatora panelu PlusX ani oficjalną aplikacją właściciela usługi. Do działania wymagane jest własne, aktywne konto w obsługiwanym panelu.
+> **PlusX Mobile jest projektem niezależnym i nieoficjalnym.** Nie jest własnością operatora panelu PlusX ani oficjalną aplikacją właściciela usługi. Do działania wymagane jest własne, aktywne konto w panelu [PlusX](https://new.plusx.tv/login.php).
 
 ## Co to właściwie jest?
 
@@ -60,6 +60,10 @@ Aplikacja **nie zastępuje serwisu PlusX** i nie tworzy własnego systemu logowa
 4. Aplikacja pobiera strony panelu w tle.
 5. Dane są układane w czytelne karty, listy i przyciski dopasowane do telefonu.
 6. Operacje wrażliwe — płatności, zmiana hasła, 2FA i finalne potwierdzenie zakupu — pozostają na oryginalnej stronie.
+
+## Dlaczego powstała ta aplikacja?
+
+Ze wzgledu na to ze oryginalna strona była tworzona z myślą na komputery stacjonarne/duże ekrany więc powstała aplikacja ktora poprostu bazuje na ich stronie tylko ze jest przyjemniejsza w obsłudze oraz kompaktowa.
 
 ## Najważniejsze funkcje
 
@@ -268,16 +272,16 @@ Aplikacja może informować o:
 - dostępnej nowej wersji aplikacji,
 - opisie zmian pobranym z GitHuba.
 
-Na Androidzie 13 i nowszym przy pierwszym użyciu funkcji powiadomień pojawi się systemowe pytanie o zgodę. Możesz odmówić — pozostałe funkcje aplikacji nadal będą działać normalnie. Zgodę można później zmienić w ustawieniach systemowych Androida dla aplikacji **PlusX Mobile**.
+Na Androidzie 13 i nowszym przy pierwszym użyciu funkcji powiadomień pojawi się systemowe pytanie o zgodę. Możesz odmówić — pozostałe funkcje aplikacji nadal będą działać normalnie. Zgodę można później zmienić w ustawieniach systemowych Androida dla aplikacji **PlusX Mobile** lub odinstalować i zainstalować aplikacje oraz zaakceptować powiadomienia.
 
-W zakładce **O aplikacji** można ręcznie sprawdzić aktualizację. Oficjalne wydania są publikowane w sekcji [Releases](https://github.com/Torvinek/PlusX-Mobile/releases).
+W zakładce **O aplikacji** można ręcznie sprawdzić aktualizację, zeby zaktualizować aplikacje "automatycznie" to trzeba w ustawieniach w zakladce Zezwól na instalowanie nie znanych aplikacji lub coś w tym stylu wlaczyć mozliwosć instalowania aplikacji czyli aktualizacji dla aplikacji 'PlusX Mobile'. Lub zaktualizować recznie, oficjalne wydania są publikowane w sekcji [Releases](https://github.com/Torvinek/PlusX-Mobile/releases).
 
 ## Instalacja
 
 ### Wymagania
 
 - Android 9 lub nowszy,
-- aktywne konto w obsługiwanym panelu PlusX,
+- konto w panelu [PlusX](https://new.plusx.tv/login.php),
 - połączenie z internetem.
 
 ### Kroki
@@ -395,7 +399,7 @@ Najlepsza droga zgłoszenia błędu:
 3. Opisz krótko, co nie działa i na jakim ekranie pojawił się problem.
 4. Wyślij raport.
 
-Możesz również utworzyć zgłoszenie w zakładce [Issues](https://github.com/Torvinek/PlusX-Mobile/issues), ale **nie publikuj** tam:
+Możesz również utworzyć zgłoszenie w zakładce [Issues](https://github.com/Torvinek/PlusX-Mobile/issues), lub w aplikacji **PlusX Mobile** po zalogowaniu w zakladce 'Ustawienia --> Diagnostyka' ale **nie publikuj** tam:
 
 - loginu,
 - hasła,
@@ -423,6 +427,7 @@ Kod można przeglądać, analizować i lokalnie budować w granicach opisanych w
 
 - kopiowanie projektu do innych repozytoriów,
 - tworzenie i publikowanie mirrorów,
+- Edycja w celu finansowych, poprawy funkcji, wgrania malware'ru uzytkownikowi,
 - redystrybucja kodu lub APK,
 - publikowanie własnych wersji aplikacji,
 - użycie komercyjne,
@@ -434,6 +439,8 @@ Plik [LICENSE-MIT](LICENSE-MIT) ma zastosowanie wyłącznie do elementów, któr
 
 **Torvinek**  
 GitHub: [@Torvinek](https://github.com/Torvinek)
+Telegram: [@marclxz](https://t.me/marclxz)
+Email: [prywatny.marcelo@gmail.com](mailto:prywatny.marcelo@gmail.com)
 
 <p align="center">
   <strong>© Torvinek 2026</strong><br>
