@@ -1,9 +1,8 @@
 <p align="center">
   <img
-    src="assets/plusx-logo.png"
+    src="assets/plusx-banner.png"
     alt="PlusX.tv"
     width="820"
-    height="145"
   >
 </p>
 
@@ -208,13 +207,23 @@ Płatności pozostają na stronie PlusX. Aplikacja nie implementuje własnego sy
 
 ### Uprawnienia Androida
 
-Aplikacja deklaruje wyłącznie:
+Aplikacja korzysta wyłącznie z uprawnień potrzebnych do działania panelu i własnych powiadomień:
 
 ```xml
 <uses-permission android:name="android.permission.INTERNET" />
+<uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 ```
 
-Nie żąda dostępu do kontaktów, SMS-ów, mikrofonu, aparatu, lokalizacji ani plików użytkownika.
+| Uprawnienie | Do czego jest używane |
+|---|---|
+| `INTERNET` | Logowanie do panelu PlusX, pobieranie danych z `new.plusx.tv`, wiadomości, EPG, sprawdzanie aktualizacji i ręcznie wysyłana diagnostyka. |
+| `POST_NOTIFICATIONS` | Wyświetlanie powiadomień o nowych wiadomościach PlusX oraz dostępnej aktualizacji aplikacji. Na Androidzie 13 i nowszym system prosi o zgodę użytkownika. |
+
+Brak zgody na powiadomienia **nie blokuje korzystania z aplikacji** — wyłączone będą jedynie komunikaty wyświetlane poza aplikacją.
+
+`POST_NOTIFICATIONS` nie daje dostępu do cudzych powiadomień ani ich treści. Pozwala PlusX Mobile wyłącznie wyświetlać własne komunikaty systemowe.
+
+Aplikacja nie żąda dostępu do kontaktów, SMS-ów, mikrofonu, aparatu, lokalizacji ani plików użytkownika.
 
 Szczegóły: [PRIVACY.md](PRIVACY.md) oraz [SECURITY.md](SECURITY.md).
 
@@ -256,8 +265,10 @@ Diagnostyki zaawansowanej nie można uruchomić dla ekranów doładowania ani us
 Aplikacja może informować o:
 
 - nowych wiadomościach PlusX,
-- dostępnej nowej wersji,
+- dostępnej nowej wersji aplikacji,
 - opisie zmian pobranym z GitHuba.
+
+Na Androidzie 13 i nowszym przy pierwszym użyciu funkcji powiadomień pojawi się systemowe pytanie o zgodę. Możesz odmówić — pozostałe funkcje aplikacji nadal będą działać normalnie. Zgodę można później zmienić w ustawieniach systemowych Androida dla aplikacji **PlusX Mobile**.
 
 W zakładce **O aplikacji** można ręcznie sprawdzić aktualizację. Oficjalne wydania są publikowane w sekcji [Releases](https://github.com/Torvinek/PlusX-Mobile/releases).
 
