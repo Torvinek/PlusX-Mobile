@@ -89,11 +89,18 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         shell: bash
         run: |
-          gh release create "$GITHUB_REF_NAME" \
-            PlusXMobile-Release-v*.apk \
-            PlusXMobile-Release-v*.apk.sha256 \
-            --title "PlusX Mobile $GITHUB_REF_NAME" \
-            --generate-notes
+          if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
+            gh release upload "$GITHUB_REF_NAME" \
+              PlusXMobile-Release-v*.apk \
+              PlusXMobile-Release-v*.apk.sha256 \
+              --clobber
+          else
+            gh release create "$GITHUB_REF_NAME" \
+              PlusXMobile-Release-v*.apk \
+              PlusXMobile-Release-v*.apk.sha256 \
+              --title "PlusX Mobile $GITHUB_REF_NAME" \
+              --generate-notes
+          fi
 
       - name: Remove temporary secrets
         if: always()

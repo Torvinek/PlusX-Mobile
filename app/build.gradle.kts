@@ -127,7 +127,7 @@ dependencies {
 }
 
 gradle.taskGraph.whenReady {
-    val apkTasks = allTasks.map { it.name }.filter {
+    val apkTasks = gradle.startParameter.taskNames.filter {
         it.contains("assemble", ignoreCase = true) ||
             it.contains("bundle", ignoreCase = true) ||
             it.contains("install", ignoreCase = true) ||
