@@ -189,6 +189,29 @@ class NewsNotificationReceiver : BroadcastReceiver() {
             context.sendBroadcast(intent)
         }
 
+        fun checkResellerExpiry(context: Context, accounts: List<ResellerHtmlParser.Account>) {
+            ensureChannel(context)
+            val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+            accounts
+                .filter { it.hasActivePackage }
+                .mapNotNull { account ->
+                    val daysLeft = resellerDaysLeft(account.days) ?: return@mapNotNull null
+                    val level = when (daysLeft) {
+                        in 0..3 -> "red"
+                        in 4..7 -> "yellow"
+                        else -> return@mapNotNull null
+                    }
+                    ExpiryAlert(account, daysLeft, level)
+                }
+                .sortedBy { it.daysLeft }
+                .forEach { alert ->
+                    val key = "expiry_${alert.level}_${alert.account.login}_${alert.account.expiry}"
+                    if (prefs.getBoolean(key, false)) return@forEach
+                    prefs.edit().putBoolean(key, true).apply()
+                    showResellerExpiryNotification(context, alert.account.login, alert.daysLeft, alert.level)
+                }
+        }
+
         fun schedule(context: Context) {
             ensureChannel(context)
             val intent = Intent(context, NewsNotificationReceiver::class.java).apply {
@@ -214,12 +237,61 @@ class NewsNotificationReceiver : BroadcastReceiver() {
             val manager = context.getSystemService(NotificationManager::class.java)
             val channel = NotificationChannel(
                 CHANNEL_ID,
-                "WiadomoĹ›ci PlusX",
+                "Wiadomosci PlusX",
                 NotificationManager.IMPORTANCE_HIGH
             ).apply {
-                description = "Powiadomienia o nowych wiadomoĹ›ciach PlusX"
+                description = "Powiadomienia o nowych wiadomosciach PlusX"
             }
             manager.createNotificationChannel(channel)
+        }
+
+        private data class ExpiryAlert(
+            val account: ResellerHtmlParser.Account,
+            val daysLeft: Int,
+            val level: String
+        )
+
+        private fun resellerDaysLeft(days: String): Int? {
+            return Regex("(\\d+)").find(days)?.groupValues?.get(1)?.toIntOrNull()
+        }
+
+        private fun showResellerExpiryNotification(context: Context, login: String, daysLeft: Int, level: String) {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+                context.checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
+            ) {
+                return
+            }
+
+            val title = if (level == "red") {
+                "Pakiet zaraz wygasnie"
+            } else {
+                "Pakiet konczy sie za kilka dni"
+            }
+            val dayWord = when (daysLeft) {
+                1 -> "dzien"
+                else -> "dni"
+            }
+            val text = "Na koncie $login zostalo $daysLeft $dayWord pakietu."
+            val openIntent = Intent(context, MainActivity::class.java).apply {
+                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+            }
+            val pendingIntent = PendingIntent.getActivity(
+                context,
+                2301 + daysLeft,
+                openIntent,
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+            )
+            val notification = Notification.Builder(context, CHANNEL_ID)
+                .setSmallIcon(R.mipmap.ic_launcher)
+                .setContentTitle(title)
+                .setContentText(text)
+                .setContentIntent(pendingIntent)
+                .setAutoCancel(true)
+                .setPriority(Notification.PRIORITY_HIGH)
+                .build()
+
+            val stableId = 4000 + (login.hashCode() and 0x0FFF) + if (level == "red") 10000 else 0
+            context.getSystemService(NotificationManager::class.java).notify(stableId, notification)
         }
 
         private fun hidden(vararg values: Int): String {

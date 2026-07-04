@@ -189,6 +189,7 @@ class MainActivity : Activity() {
         val secondActionLabel: String = "",
         val badgeText: String = "",
         val badgeImageRes: Int = 0,
+        val badgeColor: Int? = null,
         val cornerText: String = ""
     )
 
@@ -962,6 +963,7 @@ class MainActivity : Activity() {
                     resellerAccountActivity[accountStatusKey(account.login)] = account.hasActivePackage
                     resellerAccountDetails[accountStatusKey(account.login)] = account
                 }
+                NewsNotificationReceiver.checkResellerExpiry(this, accounts)
                 accounts.map(::resellerAccountItem)
             }.getOrElse {
                 listOf(
@@ -2162,7 +2164,12 @@ class MainActivity : Activity() {
 
         if (item.badgeImageRes != 0 || item.badgeText.isNotBlank()) {
             val logoBox = FrameLayout(this)
-            logoBox.background = rounded(if (darkMode) Color.rgb(15, 23, 42) else Color.rgb(248, 250, 252), 18, strokeColor())
+            val badgeColor = item.badgeColor
+            logoBox.background = rounded(
+                badgeColor ?: if (darkMode) Color.rgb(15, 23, 42) else Color.rgb(248, 250, 252),
+                18,
+                if (badgeColor == null) strokeColor() else 0
+            )
             if (item.badgeImageRes != 0) {
                 val image = ImageView(this)
                 image.setImageResource(item.badgeImageRes)
@@ -2177,7 +2184,7 @@ class MainActivity : Activity() {
                 badge.textSize = 14f
                 badge.setTypeface(null, 1)
                 badge.gravity = 17
-                badge.setTextColor(textColor())
+                badge.setTextColor(if (badgeColor == null) textColor() else readableTextOn(badgeColor))
                 logoBox.addView(badge, FrameLayout.LayoutParams(dp(56), dp(48)))
                 header.addView(logoBox, LinearLayout.LayoutParams(dp(56), dp(48)).apply { setMargins(0, 0, dp(12), 0) })
             }
@@ -3213,6 +3220,8 @@ class MainActivity : Activity() {
 
     private fun resellerAccountItem(account: ResellerHtmlParser.Account): PageItem {
         val encodedLogin = URLEncoder.encode(account.login, "UTF-8")
+        val daysLeft = resellerDaysLeft(account.days)
+        val warningColor = resellerExpiryWarningColor(daysLeft)
         val state = if (account.hasActivePackage) {
             listOf(
                 "Status: aktywny",
@@ -3228,8 +3237,32 @@ class MainActivity : Activity() {
             "/packets.php?selected_user=$encodedLogin",
             actionLabel = "Kup pakiet",
             secondActionUrl = "/tuner_settings.php?selected_user=$encodedLogin",
-            secondActionLabel = "Link M3U"
+            secondActionLabel = "Link M3U",
+            badgeText = if (warningColor != null && daysLeft != null) "${daysLeft}d" else "",
+            badgeColor = warningColor
         )
+    }
+
+    private fun resellerDaysLeft(days: String): Int? {
+        return Regex("(\\d+)").find(days)?.groupValues?.get(1)?.toIntOrNull()
+    }
+
+    private fun resellerExpiryWarningColor(daysLeft: Int?): Int? {
+        return when (daysLeft) {
+            null -> null
+            in 0..3 -> Color.rgb(220, 38, 38)
+            in 4..7 -> Color.rgb(245, 158, 11)
+            in 8..Int.MAX_VALUE -> Color.rgb(22, 163, 74)
+            else -> null
+        }
+    }
+
+    private fun readableTextOn(color: Int): Int {
+        val r = Color.red(color)
+        val g = Color.green(color)
+        val b = Color.blue(color)
+        val luminance = (0.299 * r + 0.587 * g + 0.114 * b)
+        return if (luminance > 150) Color.rgb(15, 23, 42) else Color.WHITE
     }
 
     private fun parseNews(html: String): List<PageItem> {
