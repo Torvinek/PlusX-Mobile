@@ -31,6 +31,37 @@ jobs:
       - name: Verify repository contains no private files
         run: bash scripts/check-repository.sh
 
+      - name: Create CI Firebase placeholder
+        shell: bash
+        run: |
+          mkdir -p app
+          cat > app/google-services.json <<'JSON'
+          {
+            "project_info": {
+              "project_number": "100000000000",
+              "project_id": "plusx-mobile-ci",
+              "storage_bucket": "plusx-mobile-ci.appspot.com"
+            },
+            "client": [
+              {
+                "client_info": {
+                  "mobilesdk_app_id": "1:100000000000:android:0000000000000000000000",
+                  "android_client_info": {
+                    "package_name": "pl.torvinek.plusxmobile"
+                  }
+                },
+                "api_key": [
+                  {
+                    "current_key": "ci-placeholder"
+                  }
+                ],
+                "services": {}
+              }
+            ],
+            "configuration_version": "1"
+          }
+          JSON
+
       - name: Run unit tests
         run: |
           chmod +x gradlew

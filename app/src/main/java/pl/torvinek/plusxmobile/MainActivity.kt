@@ -26,6 +26,7 @@ import android.text.TextWatcher
 import android.view.Gravity
 import android.view.View
 import android.view.ViewGroup
+import android.view.inputmethod.EditorInfo
 import android.webkit.CookieManager
 import android.webkit.WebChromeClient
 import android.webkit.WebResourceRequest
@@ -43,6 +44,9 @@ import android.widget.ProgressBar
 import android.widget.ScrollView
 import android.widget.TextView
 import android.widget.Toast
+import com.google.firebase.FirebaseApp
+import com.google.firebase.FirebaseOptions
+import com.google.firebase.messaging.FirebaseMessaging
 import org.json.JSONArray
 import org.json.JSONObject
 import org.json.JSONTokener
@@ -210,6 +214,7 @@ class MainActivity : Activity() {
 
         CookieManager.getInstance().setAcceptCookie(true)
         setupNotifications()
+        setupPushNotifications()
         showLogin()
     }
 
@@ -233,6 +238,104 @@ class MainActivity : Activity() {
             NewsNotificationReceiver.checkNow(this)
         }
         checkStartupUpdatePrompt()
+    }
+
+    private fun setupPushNotifications() {
+        if (telegramBackendToken.isBlank()) {
+            return
+        }
+        runCatching {
+            if (FirebaseApp.getApps(this).isEmpty() &&
+                BuildConfig.FIREBASE_APPLICATION_ID.isNotBlank() &&
+                BuildConfig.FIREBASE_API_KEY.isNotBlank() &&
+                BuildConfig.FIREBASE_PROJECT_ID.isNotBlank() &&
+                BuildConfig.FIREBASE_GCM_SENDER_ID.isNotBlank()
+            ) {
+                val options = FirebaseOptions.Builder()
+                    .setApplicationId(BuildConfig.FIREBASE_APPLICATION_ID)
+                    .setApiKey(BuildConfig.FIREBASE_API_KEY)
+                    .setProjectId(BuildConfig.FIREBASE_PROJECT_ID)
+                    .setGcmSenderId(BuildConfig.FIREBASE_GCM_SENDER_ID)
+                    .build()
+                FirebaseApp.initializeApp(this, options)
+            }
+            FirebaseMessaging.getInstance().token.addOnSuccessListener { token ->
+                registerPushToken(token)
+            }
+        }
+    }
+
+    private fun registerPushToken(token: String) {
+        if (token.isBlank()) return
+        Thread {
+            runCatching {
+                val payload = JSONObject()
+                    .put("token", token)
+                    .put("app_version", appVersionLabel())
+                    .put("device_manufacturer", Build.MANUFACTURER)
+                    .put("device_model", Build.MODEL)
+                    .put("android_version", Build.VERSION.RELEASE)
+                postJson("${AppConfig.backendBaseUrl}/telegram/plusx/push/register", telegramBackendToken, payload.toString())
+            }
+        }.start()
+    }
+
+    private fun notificationPermissionStatus(): String {
+        return if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) {
+            "Powiadomienia sa dostepne na tej wersji Androida."
+        } else if (checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED) {
+            "Uprawnienie nadane."
+        } else {
+            "Uprawnienie nie jest nadane."
+        }
+    }
+
+    private fun notificationPermissionDescription(): String {
+        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+            checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
+        ) {
+            "Powiadomienia sa wylaczone. Nadaj uprawnienie ponownie albo otworz ustawienia aplikacji."
+        } else {
+            "Nadaj uprawnienie ponownie albo otworz ustawienia aplikacji."
+        }
+    }
+
+    private fun requestNotificationPermissionAgain() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) {
+            showModernMessage("Powiadomienia", "Ten Android nie wymaga osobnej zgody na powiadomienia.")
+            return
+        }
+
+        if (checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED) {
+            showModernMessage("Powiadomienia wlaczone", "Aplikacja ma juz uprawnienie do wysylania powiadomien.")
+            return
+        }
+
+        showModernMessage(
+            "Wlacz powiadomienia",
+            "Android moze pokazac prosbe o zgode. Jesli okno sie nie pojawi, otworz ustawienia aplikacji i wlacz powiadomienia recznie.",
+            positiveText = "Popros ponownie",
+            negativeText = "Ustawienia",
+            onPositive = {
+                requestPermissions(arrayOf(Manifest.permission.POST_NOTIFICATIONS), 501)
+            },
+            onNegative = {
+                openAppNotificationSettings()
+            }
+        )
+    }
+
+    private fun openAppNotificationSettings() {
+        val intent = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).apply {
+                putExtra(Settings.EXTRA_APP_PACKAGE, packageName)
+            }
+        } else {
+            Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
+                data = Uri.parse("package:$packageName")
+            }
+        }
+        startActivity(intent)
     }
 
     override fun onRequestPermissionsResult(
@@ -665,7 +768,7 @@ class MainActivity : Activity() {
         val dialog = Dialog(this)
         val card = LinearLayout(this)
         card.orientation = LinearLayout.VERTICAL
-        card.setPadding(dp(22), dp(22), dp(22), dp(26))
+        card.setPadding(dp(22), dp(22), dp(22), dp(20))
         card.background = rounded(cardColor(), 24, strokeColor())
 
         val icon = TextView(this)
@@ -717,7 +820,7 @@ class MainActivity : Activity() {
         }
         row.addView(positive)
 
-        card.addView(row, LinearLayout.LayoutParams(-1, -2).apply { setMargins(0, dp(12), 0, 0) })
+        card.addView(row, LinearLayout.LayoutParams(-1, -2).apply { setMargins(0, dp(16), 0, 0) })
 
         dialog.setContentView(card)
         dialog.window?.setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
@@ -753,8 +856,8 @@ class MainActivity : Activity() {
                 onClick()
             }.start()
         }
-        button.layoutParams = LinearLayout.LayoutParams(0, dp(56), 1f).apply {
-            setMargins(dp(5), dp(10), dp(5), 0)
+        button.layoutParams = LinearLayout.LayoutParams(0, dp(52), 1f).apply {
+            setMargins(dp(5), 0, dp(5), 0)
         }
         return button
     }
@@ -1075,6 +1178,9 @@ class MainActivity : Activity() {
                     when {
                         title == "Wiadomosci" || title == "Programy na dziś" -> newsCard(item)
                         title == "Ustawienia" -> itemCard(item, clickableCard = true)
+                        title == "Reseller" -> itemCard(item, clickableCard = true)
+                        title == "Użytkownik" && item.title == "Notatka" -> resellerNoticeInlineCard(item)
+                        title == "Użytkownik" -> itemCard(item, clickableCard = item.actionUrl.isNotBlank())
                         else -> itemCard(item)
                     }
                 )
@@ -1236,7 +1342,7 @@ class MainActivity : Activity() {
     private fun billingUserCard(loadingText: String): View {
         val selected = cleanSelectedUser(currentBillingSelectedUser)
         val account = resellerAccountDetails[accountStatusKey(currentBillingSelectedUser)]
-        val packageHint = billingPackageHints(currentBillingEntries)[accountStatusKey(currentBillingSelectedUser)].orEmpty()
+        val packageHint = billingPackageHints(currentBillingEntries)[billingCanonicalUserKey(currentBillingSelectedUser)].orEmpty()
         val card = LinearLayout(this)
         card.orientation = LinearLayout.VERTICAL
         card.setPadding(dp(16), dp(16), dp(16), dp(16))
@@ -2274,6 +2380,75 @@ class MainActivity : Activity() {
         return card
     }
 
+    private fun resellerNoticeInlineCard(item: PageItem): View {
+        val login = Uri.parse(item.actionUrl).getQueryParameter("login").orEmpty()
+        val card = LinearLayout(this)
+        card.orientation = LinearLayout.VERTICAL
+        card.setPadding(dp(16), dp(16), dp(16), dp(16))
+        card.background = rounded(cardColor(), 18, strokeColor())
+
+        val title = TextView(this)
+        title.text = item.title
+        title.textSize = 17f
+        title.setTypeface(null, 1)
+        title.setTextColor(textColor())
+        card.addView(title)
+
+        val subtitle = TextView(this)
+        subtitle.text = item.subtitle
+        subtitle.textSize = 13f
+        subtitle.setTextColor(mutedColor())
+        subtitle.setPadding(0, dp(4), 0, dp(10))
+        card.addView(subtitle)
+
+        val row = LinearLayout(this)
+        row.orientation = LinearLayout.HORIZONTAL
+        row.gravity = Gravity.CENTER_VERTICAL
+
+        val input = EditText(this)
+        input.setSingleLine(true)
+        input.imeOptions = EditorInfo.IME_ACTION_DONE
+        input.textSize = 15f
+        input.setTextColor(textColor())
+        input.setHintTextColor(mutedColor())
+        input.hint = "Bez notatki"
+        input.setText(item.value)
+        input.setPadding(dp(14), 0, dp(14), 0)
+        input.background = rounded(if (darkMode) Color.rgb(15, 23, 42) else Color.WHITE, 14, strokeColor())
+        row.addView(input, LinearLayout.LayoutParams(0, dp(52), 1f))
+
+        var savedNotice = item.value
+        fun saveCurrentNotice() {
+            val value = input.text?.toString().orEmpty()
+            if (value != savedNotice) {
+                savedNotice = value
+                saveResellerNotice(login, value)
+            }
+        }
+        input.setOnEditorActionListener { _, actionId, _ ->
+            if (actionId == EditorInfo.IME_ACTION_DONE) {
+                input.clearFocus()
+                saveCurrentNotice()
+                true
+            } else {
+                false
+            }
+        }
+        input.setOnFocusChangeListener { _, hasFocus ->
+            if (!hasFocus) saveCurrentNotice()
+        }
+
+        val ok = compactButton("OK", primary = true) {
+            input.clearFocus()
+            saveCurrentNotice()
+        }
+        row.addView(ok, LinearLayout.LayoutParams(dp(86), dp(52)).apply { setMargins(dp(10), 0, 0, 0) })
+        card.addView(row)
+
+        card.layoutParams = LinearLayout.LayoutParams(-1, -2).apply { setMargins(0, 0, 0, dp(14)) }
+        return card
+    }
+
     private fun newsCard(item: PageItem): View {
         val accent = newsAccentColor(item)
         val card = LinearLayout(this)
@@ -2545,6 +2720,10 @@ class MainActivity : Activity() {
                 openSupportPage()
                 return
             }
+            "app://notifications/permission" -> {
+                requestNotificationPermissionAgain()
+                return
+            }
             else -> {
                 if (url.startsWith("app://about/download")) {
                     startUpdateDownload(url)
@@ -2552,6 +2731,18 @@ class MainActivity : Activity() {
                 }
                 if (url.startsWith("app://billing/details/")) {
                     showBillingDetails(url.removePrefix("app://billing/details/"))
+                    return
+                }
+                if (url.startsWith("app://reseller/note")) {
+                    showResellerNoticeDialog(Uri.parse(url).getQueryParameter("login").orEmpty())
+                    return
+                }
+                if (url.startsWith("app://reseller/userkey")) {
+                    resendUserKey(Uri.parse(url).getQueryParameter("login").orEmpty())
+                    return
+                }
+                if (url.startsWith("app://reseller/user")) {
+                    showResellerUserDetails(Uri.parse(url).getQueryParameter("login").orEmpty())
                     return
                 }
                 if (url.startsWith("app://confirm-buy")) {
@@ -2681,6 +2872,7 @@ class MainActivity : Activity() {
             PageItem("Zarzadzaj 2FA", "Kod QR i sekret zostaja tylko po stronie portalu.", actionUrl = "/profile.php", actionLabel = "Otworz"),
             PageItem("Wesprzyj projekt", "Postaw kawe i wesprzyj rozwoj PlusX Mobile.", actionUrl = "app://support", actionLabel = "Otworz"),
             PageItem("O aplikacji", "Wersja aplikacji, aktualizacje i ostatnie zmiany z GitHuba.", actionUrl = "app://about", actionLabel = "Otworz"),
+            PageItem("Powiadomienia", notificationPermissionDescription(), actionUrl = "app://notifications/permission", actionLabel = "Ustaw"),
             PageItem("Diagnostyka", "Dane do pomocy technicznej. Bez doładowań, ustawien i bez prywatnych adresow IP.", actionUrl = "app://diagnostics", actionLabel = "Otworz")
         )
         lastSettingsItems = items
@@ -2710,7 +2902,8 @@ class MainActivity : Activity() {
             return listOf(PageItem("Brak historii", "Nie znaleziono wpisow rozliczen."))
         }
 
-        currentBillingMainUser = parseDashboardUsername(lastDashboardHtml)
+        currentBillingMainUser = parseDashboardEmail(lastDashboardHtml)
+            .ifBlank { parseDashboardUsername(lastDashboardHtml) }
         val entries = matches.mapIndexedNotNull { index, match ->
             val start = match.range.first
             val end = matches.getOrNull(index + 1)?.range?.first ?: clean.length
@@ -2720,13 +2913,13 @@ class MainActivity : Activity() {
 
         currentBillingEntries = entries
         currentBillingUsers = billingKnownUsers(entries)
-        if (currentBillingSelectedUser.isNotBlank() && currentBillingUsers.none { accountStatusKey(it) == accountStatusKey(currentBillingSelectedUser) }) {
+        if (currentBillingSelectedUser.isNotBlank() && currentBillingUsers.none { billingSameUser(it, currentBillingSelectedUser) }) {
             currentBillingSelectedUser = ""
         }
 
         val packageHints = entries
             .mapNotNull { entry ->
-                val user = accountStatusKey(entry.user)
+                val user = billingCanonicalUserKey(entry.user)
                 val direct = directBillingPackageName(kotlin.math.abs(entry.amount))
                 if (user.isNotBlank() && direct.isNotBlank()) user to direct else null
             }
@@ -2734,7 +2927,7 @@ class MainActivity : Activity() {
             .mapValues { (_, packages) -> packages.groupingBy { it }.eachCount().maxByOrNull { it.value }?.key.orEmpty() }
 
         return entries.map { entry ->
-            billingHistoryItem(entry, packageHints[accountStatusKey(entry.user)].orEmpty())
+            billingHistoryItem(entry, packageHints[billingCanonicalUserKey(entry.user)].orEmpty())
         }.ifEmpty {
             listOf(PageItem("Brak historii", "Nie udalo sie odczytac wpisow rozliczen."))
         }
@@ -2766,7 +2959,7 @@ class MainActivity : Activity() {
     private fun billingHistoryItemsForSelectedUser(): List<PageItem> {
         val selectedKey = accountStatusKey(currentBillingSelectedUser)
         val entries = currentBillingEntries.filter {
-            selectedKey.isBlank() || accountStatusKey(it.user) == selectedKey
+            billingUserMatches(it.user, selectedKey)
         }
         if (entries.isEmpty()) return emptyList()
 
@@ -2778,14 +2971,14 @@ class MainActivity : Activity() {
             if (entry.amount > 0) {
                 val group = mutableListOf(entry)
                 var next = index + 1
-                while (next < entries.size && entries[next].amount > 0 && accountStatusKey(entries[next].user) == accountStatusKey(entry.user)) {
+                while (next < entries.size && entries[next].amount > 0 && billingSameUser(entries[next].user, entry.user)) {
                     group.add(entries[next])
                     next += 1
                 }
                 items.add(billingTopupGroupItem(group))
                 index = next
             } else {
-                items.add(billingHistoryItem(entry, hints[accountStatusKey(entry.user)].orEmpty()))
+                items.add(billingHistoryItem(entry, hints[billingCanonicalUserKey(entry.user)].orEmpty()))
                 index += 1
             }
         }
@@ -2795,7 +2988,7 @@ class MainActivity : Activity() {
     private fun billingPackageHints(entries: List<BillingHistoryEntry>): Map<String, String> {
         return entries
             .mapNotNull { entry ->
-                val user = accountStatusKey(entry.user)
+                val user = billingCanonicalUserKey(entry.user)
                 val direct = directBillingPackageName(kotlin.math.abs(entry.amount))
                 if (user.isNotBlank() && direct.isNotBlank() && entry.amount < 0) user to direct else null
             }
@@ -2805,7 +2998,7 @@ class MainActivity : Activity() {
 
     private fun billingTopupGroupItem(group: List<BillingHistoryEntry>): PageItem {
         val total = group.sumOf { it.amount }
-        val user = group.firstOrNull()?.user.orEmpty()
+        val user = displayBillingUser(group.firstOrNull()?.user.orEmpty())
         val id = "topup_${billingDetails.size}_${System.currentTimeMillis()}"
         val details = buildString {
             appendLine("Doladowanie konta")
@@ -2837,7 +3030,7 @@ class MainActivity : Activity() {
         val date = Regex("(\\d{2}\\.\\d{2}\\.\\d{4}\\s+\\d{2}:\\d{2})").find(block)?.groupValues?.get(1) ?: return null
         val amountRaw = Regex("([+-]\\d+(?:[.,]\\d+)?)").find(block.substringAfter(date))?.groupValues?.get(1) ?: return null
         val amount = amountRaw.replace(",", ".").toDoubleOrNull() ?: return null
-        val user = extractBillingUser(block).ifBlank { currentBillingMainUser }
+        val user = extractBillingUser(block).ifBlank { "__main_account__" }
         val reason = when {
             amount > 0 -> "Doladowanie konta"
             block.contains("Purchase of package", true) -> "Zakup pakietu"
@@ -2848,6 +3041,7 @@ class MainActivity : Activity() {
 
     private fun billingHistoryItem(entry: BillingHistoryEntry, userPackageHint: String): PageItem {
         val rounded = formatEuroAmount(entry.amount)
+        val displayUser = displayBillingUser(entry.user)
         val details = if (entry.amount > 0) {
             "Kwota doladowania: $rounded"
         } else {
@@ -2859,12 +3053,12 @@ class MainActivity : Activity() {
             "Data: ${billingDateForDisplay(entry.date)}",
             "Kwota: $rounded",
             details,
-            if (entry.user.isNotBlank()) "Uzytkownik: ${entry.user}" else ""
+            if (displayUser.isNotBlank()) "Uzytkownik: $displayUser" else ""
         ).filter { it.isNotBlank() }.joinToString("\n")
         val value = listOf(
             "Kwota: $rounded",
             details,
-            if (entry.user.isNotBlank()) "Uzytkownik: ${entry.user}" else ""
+            if (displayUser.isNotBlank()) "Uzytkownik: $displayUser" else ""
         ).filter { it.isNotBlank() }.joinToString("\n")
 
         return PageItem(
@@ -2879,7 +3073,54 @@ class MainActivity : Activity() {
 
     private fun showBillingDetails(id: String) {
         val details = billingDetails[id].orEmpty()
-        showModernMessage("Szczegoly historii", details.ifBlank { "Brak szczegolow dla tego wpisu." })
+        val body = TextView(this)
+        body.text = details.ifBlank { "Brak szczegolow dla tego wpisu." }
+        body.textSize = 15f
+        body.setTextColor(textColor())
+        body.setLineSpacing(dp(3).toFloat(), 1.0f)
+        body.gravity = Gravity.START
+        body.setPadding(dp(14), dp(12), dp(14), dp(12))
+        body.background = rounded(if (darkMode) Color.rgb(15, 23, 42) else Color.rgb(248, 250, 252), 14, strokeColor())
+        showModernMessage("Szczegoly historii", "", contentView = body)
+    }
+
+    private fun billingMainAliases(): Set<String> {
+        return listOf(
+            currentBillingMainUser,
+            parseDashboardEmail(lastDashboardHtml),
+            parseDashboardUsername(lastDashboardHtml),
+            "__main_account__"
+        )
+            .map { accountStatusKey(it) }
+            .filter { it.isNotBlank() }
+            .toSet()
+    }
+
+    private fun displayBillingUser(user: String): String {
+        return if (billingCanonicalUserKey(user) == "main-account") {
+            currentBillingMainUser
+                .ifBlank { parseDashboardEmail(lastDashboardHtml) }
+                .ifBlank { parseDashboardUsername(lastDashboardHtml) }
+                .ifBlank { "konto glowne" }
+        } else {
+            user
+        }
+    }
+
+    private fun billingCanonicalUserKey(user: String): String {
+        val key = accountStatusKey(user)
+        if (user == "__main_account__" || key == "__main_account__") return "main-account"
+        return if (key.isNotBlank() && key in billingMainAliases()) "main-account" else key
+    }
+
+    private fun billingSameUser(first: String, second: String): Boolean {
+        return billingCanonicalUserKey(first) == billingCanonicalUserKey(second)
+    }
+
+    private fun billingUserMatches(entryUser: String, selectedKey: String): Boolean {
+        if (selectedKey.isBlank()) return true
+        val selectedCanonical = billingCanonicalUserKey(selectedKey)
+        return selectedCanonical.isNotBlank() && billingCanonicalUserKey(entryUser) == selectedCanonical
     }
 
     private fun extractBillingUser(block: String): String {
@@ -3234,12 +3475,197 @@ class MainActivity : Activity() {
             account.login,
             account.notice.ifBlank { "Bez notatki" },
             state,
-            "/packets.php?selected_user=$encodedLogin",
-            actionLabel = "Kup pakiet",
-            secondActionUrl = "/tuner_settings.php?selected_user=$encodedLogin",
-            secondActionLabel = "Link M3U",
+            "app://reseller/user?login=$encodedLogin",
+            actionLabel = "Szczegoly",
             badgeText = if (warningColor != null && daysLeft != null) "${daysLeft}d" else "",
             badgeColor = warningColor
+        )
+    }
+
+    private fun showResellerUserDetails(login: String) {
+        val cleanLogin = cleanSelectedUser(login)
+        val account = resellerAccountDetails[accountStatusKey(cleanLogin)]
+        if (account == null) {
+            showModernMessage("Nie znaleziono konta", "Odśwież Reseller Panel i spróbuj ponownie.")
+            return
+        }
+        val encodedLogin = URLEncoder.encode(account.login, "UTF-8")
+        val daysLeft = resellerDaysLeft(account.days)
+        val warningColor = resellerExpiryWarningColor(daysLeft)
+        val state = if (account.hasActivePackage) {
+            listOf(
+                "Status: aktywny",
+                "Wygasa: ${account.expiry} ${account.days}".trim()
+            ).filter { it != "Wygasa:" }.joinToString("\n")
+        } else {
+            "Status: nieaktywny\nBrak aktywnego pakietu"
+        }
+        val items = listOf(
+            PageItem(
+                account.login,
+                account.notice.ifBlank { "Bez notatki" },
+                state,
+                badgeText = if (warningColor != null && daysLeft != null) "${daysLeft}d" else "",
+                badgeColor = warningColor
+            ),
+            PageItem(
+                "Obecny pakiet",
+                if (account.hasActivePackage) "Dane z panelu reseller" else "Nieaktywny",
+                if (account.hasActivePackage) "Pakiet aktywny\n${"Wygasa: ${account.expiry} ${account.days}".trim()}" else "Brak aktywnego pakietu"
+            ),
+            PageItem(
+                "Notatka",
+                "Zmień notatkę i zapisz ją w panelu PlusX.",
+                account.notice,
+                actionUrl = "app://reseller/note?login=$encodedLogin",
+            ),
+            PageItem(
+                "Kup pakiet",
+                "Kup lub przedłuż pakiet dla tego użytkownika.",
+                actionUrl = "/packets.php?selected_user=$encodedLogin",
+                actionLabel = "Otwórz"
+            ),
+            PageItem(
+                "Link M3U",
+                "Linki playlist oraz User Key tego użytkownika.",
+                actionUrl = "/tuner_settings.php?selected_user=$encodedLogin",
+                actionLabel = "Otwórz"
+            ),
+            PageItem(
+                "User Key",
+                "Wygeneruj nowy klucz dla tego użytkownika.",
+                actionUrl = "app://reseller/userkey?login=$encodedLogin",
+                actionLabel = "Zmień"
+            )
+        )
+        showNativePage("Użytkownik", "dealer-user", items)
+    }
+
+    private fun showResellerNoticeDialog(login: String) {
+        val cleanLogin = cleanSelectedUser(login)
+        val account = resellerAccountDetails[accountStatusKey(cleanLogin)]
+        if (account == null) {
+            showModernMessage("Nie znaleziono konta", "Odśwież Reseller Panel i spróbuj ponownie.")
+            return
+        }
+        val input = EditText(this)
+        input.setText(account.notice)
+        input.setSingleLine(false)
+        input.minLines = 2
+        input.maxLines = 4
+        input.textSize = 15f
+        input.setTextColor(textColor())
+        input.setHintTextColor(mutedColor())
+        input.hint = "Notatka"
+        input.setPadding(dp(14), dp(12), dp(14), dp(12))
+        input.background = rounded(if (darkMode) Color.rgb(15, 23, 42) else Color.WHITE, 14, strokeColor())
+        showModernMessage(
+            "Zmień notatkę",
+            "Użytkownik: ${account.login}",
+            positiveText = "Zapisz",
+            negativeText = "Anuluj",
+            contentView = input,
+            onPositive = {
+                saveResellerNotice(account.login, input.text?.toString().orEmpty())
+            }
+        )
+    }
+
+    private fun saveResellerNotice(login: String, notice: String) {
+        Toast.makeText(this, "Zapisywanie notatki...", Toast.LENGTH_SHORT).show()
+        Thread {
+            val result = runCatching {
+                val body = "ajax_save=1&login=${URLEncoder.encode(login, "UTF-8")}&notice=${URLEncoder.encode(notice, "UTF-8")}"
+                val connection = URL("$baseUrl/dealer.php").openConnection() as HttpURLConnection
+                connection.requestMethod = "POST"
+                connection.doOutput = true
+                connection.connectTimeout = 15000
+                connection.readTimeout = 20000
+                connection.setRequestProperty("Cookie", cookieHeader)
+                connection.setRequestProperty("User-Agent", "Mozilla/5.0 (Linux; Android 13) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120 Mobile Safari/537.36")
+                connection.setRequestProperty("Accept", "application/json, text/javascript, */*; q=0.01")
+                connection.setRequestProperty("Content-Type", "application/x-www-form-urlencoded; charset=UTF-8")
+                connection.outputStream.use { it.write(body.toByteArray(Charsets.UTF_8)) }
+                val stream = if (connection.responseCode in 200..299) connection.inputStream else connection.errorStream
+                val response = stream.bufferedReader(Charsets.UTF_8).use { it.readText() }
+                JSONObject(response).optBoolean("success", false)
+            }
+            runOnUiThread {
+                result.onSuccess { success ->
+                    if (success) {
+                        val key = accountStatusKey(login)
+                        resellerAccountDetails[key]?.let { resellerAccountDetails[key] = it.copy(notice = notice) }
+                        showResellerUserDetails(login)
+                        showModernMessage("Notatka zaktualizowana", "Notatka została zapisana w panelu PlusX.")
+                    } else {
+                        showModernMessage("Nie zapisano notatki", "Panel PlusX odrzucił zapis. Spróbuj ponownie.")
+                    }
+                }.onFailure {
+                    showModernMessage("Nie zapisano notatki", "Nie udało się połączyć z panelem PlusX.")
+                }
+            }
+        }.start()
+    }
+
+    private fun resendUserKey(login: String) {
+        val cleanLogin = cleanSelectedUser(login)
+        if (cleanLogin.isBlank()) {
+            showModernMessage("Brak użytkownika", "Nie udało się wybrać użytkownika do zmiany User Key.")
+            return
+        }
+        showModernMessage(
+            "Zmienić User Key?",
+            "Nowy klucz dla użytkownika:\n\n$cleanLogin\n\nWygenerowany klucz zostanie aktywowany do 5 minut.",
+            positiveText = "Zmień",
+            negativeText = "Anuluj",
+            onPositive = {
+                Toast.makeText(this, "Wysyłam zmianę User Key...", Toast.LENGTH_SHORT).show()
+                Thread {
+                    val result = runCatching {
+                        val body = "submit_send_code=1&komukey=${URLEncoder.encode(cleanLogin, "UTF-8")}"
+                        val connection = URL("$baseUrl/tuner_settings.php").openConnection() as HttpURLConnection
+                        connection.requestMethod = "POST"
+                        connection.doOutput = true
+                        connection.connectTimeout = 15000
+                        connection.readTimeout = 20000
+                        connection.setRequestProperty("Cookie", cookieHeader)
+                        connection.setRequestProperty("User-Agent", "Mozilla/5.0 (Linux; Android 13) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120 Mobile Safari/537.36")
+                        connection.setRequestProperty("Content-Type", "application/x-www-form-urlencoded; charset=UTF-8")
+                        connection.outputStream.use { it.write(body.toByteArray(Charsets.UTF_8)) }
+                        if (connection.responseCode !in 200..299) return@runCatching ""
+                        val freshHtml = getHtml("$baseUrl/tuner_settings.php?selected_user=${URLEncoder.encode(cleanLogin, "UTF-8")}")
+                        M3uHtmlParser.parse(freshHtml).userKey.orEmpty()
+                    }
+                    runOnUiThread {
+                        result.onSuccess { newKey ->
+                            if (newKey.isNotBlank()) {
+                                val body = TextView(this)
+                                body.text = newKey
+                                body.textSize = 15f
+                                body.setTypeface(null, 1)
+                                body.setTextColor(textColor())
+                                body.setPadding(dp(14), dp(12), dp(14), dp(12))
+                                body.background = rounded(if (darkMode) Color.rgb(15, 23, 42) else Color.rgb(248, 250, 252), 14, strokeColor())
+                                body.setOnClickListener { copyToClipboard(newKey) }
+                                showModernMessage(
+                                    "User Key zmieniony",
+                                    "Nowy klucz dla:\n$cleanLogin\n\nWygenerowany klucz zostanie aktywowany do 5 minut.\nDotknij pola, żeby skopiować.",
+                                    positiveText = "Otwórz M3U",
+                                    negativeText = "OK",
+                                    contentView = body,
+                                    onPositive = {
+                                        openInternalAction("/tuner_settings.php?selected_user=${URLEncoder.encode(cleanLogin, "UTF-8")}")
+                                    }
+                                )
+                            } else {
+                                showModernMessage("Nie zmieniono User Key", "Portal PlusX nie przyjął requestu. Spróbuj ponownie.")
+                            }
+                        }.onFailure {
+                            showModernMessage("Nie zmieniono User Key", "Nie udało się połączyć z tuner_settings.php.")
+                        }
+                    }
+                }.start()
+            }
         )
     }
 

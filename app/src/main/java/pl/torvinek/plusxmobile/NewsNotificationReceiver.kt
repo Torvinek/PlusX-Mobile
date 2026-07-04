@@ -11,10 +11,14 @@ import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
+import org.json.JSONArray
 import org.json.JSONObject
 import java.net.HttpURLConnection
 import java.net.URI
 import java.net.URL
+import java.time.LocalDate
+import java.time.format.DateTimeFormatter
+import java.time.temporal.ChronoUnit
 
 class NewsNotificationReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent?) {
@@ -29,6 +33,7 @@ class NewsNotificationReceiver : BroadcastReceiver() {
             runCatching {
                 checkLatestNews(appContext)
                 checkLatestRelease(appContext)
+                checkStoredResellerExpiry(appContext)
             }
             schedule(appContext)
             pendingResult.finish()
@@ -174,6 +179,7 @@ class NewsNotificationReceiver : BroadcastReceiver() {
         private const val PREFS = "plusx_news_notifications"
         private const val KEY_LAST_NEWS_ID = "last_news_id"
         private const val KEY_LAST_RELEASE_TAG = "last_release_tag"
+        private const val KEY_RESELLER_EXPIRY_SNAPSHOT = "reseller_expiry_snapshot"
         private const val CHANNEL_ID = "plusx_alerts_v2"
         private const val ALARM_ACTION = "pl.torvinek.plusxmobile.CHECK_NEWS"
         private const val INTERVAL_MS = 15L * 60L * 1000L
@@ -191,14 +197,15 @@ class NewsNotificationReceiver : BroadcastReceiver() {
 
         fun checkResellerExpiry(context: Context, accounts: List<ResellerHtmlParser.Account>) {
             ensureChannel(context)
+            saveResellerExpirySnapshot(context, accounts)
             val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
             accounts
                 .filter { it.hasActivePackage }
                 .mapNotNull { account ->
-                    val daysLeft = resellerDaysLeft(account.days) ?: return@mapNotNull null
+                    val daysLeft = resellerDaysLeft(account.days) ?: daysLeftFromExpiry(account.expiry) ?: return@mapNotNull null
                     val level = when (daysLeft) {
-                        in 0..3 -> "red"
-                        in 4..7 -> "yellow"
+                        3 -> "red"
+                        7 -> "yellow"
                         else -> return@mapNotNull null
                     }
                     ExpiryAlert(account, daysLeft, level)
@@ -207,9 +214,57 @@ class NewsNotificationReceiver : BroadcastReceiver() {
                 .forEach { alert ->
                     val key = "expiry_${alert.level}_${alert.account.login}_${alert.account.expiry}"
                     if (prefs.getBoolean(key, false)) return@forEach
-                    prefs.edit().putBoolean(key, true).apply()
-                    showResellerExpiryNotification(context, alert.account.login, alert.daysLeft, alert.level)
+                    if (showResellerExpiryNotification(context, alert.account.login, alert.daysLeft, alert.level)) {
+                        prefs.edit().putBoolean(key, true).apply()
+                    }
                 }
+        }
+
+        private fun checkStoredResellerExpiry(context: Context) {
+            val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+            val raw = prefs.getString(KEY_RESELLER_EXPIRY_SNAPSHOT, "").orEmpty()
+            if (raw.isBlank()) return
+            val accounts = runCatching {
+                val items = JSONArray(raw)
+                (0 until items.length()).mapNotNull { index ->
+                    val item = items.optJSONObject(index) ?: return@mapNotNull null
+                    val login = item.optString("login").trim()
+                    val expiry = item.optString("expiry").trim()
+                    if (login.isBlank() || expiry.isBlank()) return@mapNotNull null
+                    login to expiry
+                }
+            }.getOrDefault(emptyList())
+
+            accounts.forEach { (login, expiry) ->
+                val daysLeft = daysLeftFromExpiry(expiry) ?: return@forEach
+                val level = when (daysLeft) {
+                    3 -> "red"
+                    7 -> "yellow"
+                    else -> return@forEach
+                }
+                val key = "expiry_${level}_${login}_${expiry}"
+                if (prefs.getBoolean(key, false)) return@forEach
+                if (showResellerExpiryNotification(context, login, daysLeft, level)) {
+                    prefs.edit().putBoolean(key, true).apply()
+                }
+            }
+        }
+
+        private fun saveResellerExpirySnapshot(context: Context, accounts: List<ResellerHtmlParser.Account>) {
+            val items = JSONArray()
+            accounts
+                .filter { it.hasActivePackage && it.login.isNotBlank() && it.expiry.isNotBlank() }
+                .forEach { account ->
+                    items.put(
+                        JSONObject()
+                            .put("login", account.login)
+                            .put("expiry", account.expiry)
+                    )
+                }
+            context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+                .edit()
+                .putString(KEY_RESELLER_EXPIRY_SNAPSHOT, items.toString())
+                .apply()
         }
 
         fun schedule(context: Context) {
@@ -255,23 +310,30 @@ class NewsNotificationReceiver : BroadcastReceiver() {
             return Regex("(\\d+)").find(days)?.groupValues?.get(1)?.toIntOrNull()
         }
 
-        private fun showResellerExpiryNotification(context: Context, login: String, daysLeft: Int, level: String) {
+        private fun daysLeftFromExpiry(expiry: String): Int? {
+            val date = runCatching {
+                LocalDate.parse(expiry.trim(), DateTimeFormatter.ofPattern("dd.MM.yyyy"))
+            }.getOrNull() ?: return null
+            return ChronoUnit.DAYS.between(LocalDate.now(), date).toInt()
+        }
+
+        private fun showResellerExpiryNotification(context: Context, login: String, daysLeft: Int, level: String): Boolean {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
                 context.checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
             ) {
-                return
+                return false
             }
 
             val title = if (level == "red") {
-                "Pakiet zaraz wygasnie"
+                "Pakiet wygasa za 3 dni"
             } else {
-                "Pakiet konczy sie za kilka dni"
+                "Pakiet wygasa za 7 dni"
             }
             val dayWord = when (daysLeft) {
                 1 -> "dzien"
                 else -> "dni"
             }
-            val text = "Na koncie $login zostalo $daysLeft $dayWord pakietu."
+            val text = "Na użytkowniku $login zostało tylko $daysLeft $dayWord pakietu."
             val openIntent = Intent(context, MainActivity::class.java).apply {
                 flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
             }
@@ -292,6 +354,7 @@ class NewsNotificationReceiver : BroadcastReceiver() {
 
             val stableId = 4000 + (login.hashCode() and 0x0FFF) + if (level == "red") 10000 else 0
             context.getSystemService(NotificationManager::class.java).notify(stableId, notification)
+            return true
         }
 
         private fun hidden(vararg values: Int): String {

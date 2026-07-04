@@ -17,6 +17,7 @@ jobs:
       ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
       ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
       ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+      GOOGLE_SERVICES_JSON_BASE64: ${{ secrets.GOOGLE_SERVICES_JSON_BASE64 }}
 
     steps:
       - name: Checkout
@@ -43,9 +44,16 @@ jobs:
           test -n "$ANDROID_KEYSTORE_PASSWORD" || { echo "Missing ANDROID_KEYSTORE_PASSWORD"; exit 1; }
           test -n "$ANDROID_KEY_ALIAS" || { echo "Missing ANDROID_KEY_ALIAS"; exit 1; }
           test -n "$ANDROID_KEY_PASSWORD" || { echo "Missing ANDROID_KEY_PASSWORD"; exit 1; }
+          test -n "$GOOGLE_SERVICES_JSON_BASE64" || { echo "Missing GOOGLE_SERVICES_JSON_BASE64"; exit 1; }
 
       - name: Verify repository
         run: bash scripts/check-repository.sh
+
+      - name: Restore Firebase config
+        shell: bash
+        run: |
+          printf '%s' "$GOOGLE_SERVICES_JSON_BASE64" | base64 --decode > app/google-services.json
+          python -m json.tool app/google-services.json >/dev/null
 
       - name: Restore signing key
         shell: bash
@@ -105,4 +113,4 @@ jobs:
       - name: Remove temporary secrets
         if: always()
         shell: bash
-        run: rm -f signing.properties plusx-release.keystore
+        run: rm -f signing.properties plusx-release.keystore app/google-services.json

@@ -5,6 +5,7 @@
 *.iml
 .kotlin/
 local.properties
+app/google-services.json
 
 # Signing and private keys
 signing.properties

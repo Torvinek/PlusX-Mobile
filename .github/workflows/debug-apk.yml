@@ -15,6 +15,7 @@ jobs:
       ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
       ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
       ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+      GOOGLE_SERVICES_JSON_BASE64: ${{ secrets.GOOGLE_SERVICES_JSON_BASE64 }}
 
     steps:
       - uses: actions/checkout@v4
@@ -35,6 +36,9 @@ jobs:
         run: |
           test -n "$PLUSX_BACKEND_TOKEN" || { echo "Missing PLUSX_BACKEND_TOKEN"; exit 1; }
           test -n "$ANDROID_KEYSTORE_BASE64" || { echo "Missing ANDROID_KEYSTORE_BASE64"; exit 1; }
+          test -n "$GOOGLE_SERVICES_JSON_BASE64" || { echo "Missing GOOGLE_SERVICES_JSON_BASE64"; exit 1; }
+          printf '%s' "$GOOGLE_SERVICES_JSON_BASE64" | base64 --decode > app/google-services.json
+          python -m json.tool app/google-services.json >/dev/null
           printf '%s' "$ANDROID_KEYSTORE_BASE64" | base64 --decode > plusx-release.keystore
           {
             printf 'storeFile=%s\n' "$GITHUB_WORKSPACE/plusx-release.keystore"
@@ -58,4 +62,4 @@ jobs:
 
       - name: Remove temporary secrets
         if: always()
-        run: rm -f signing.properties plusx-release.keystore
+        run: rm -f signing.properties plusx-release.keystore app/google-services.json

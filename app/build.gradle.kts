@@ -3,6 +3,7 @@ import java.util.Properties
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
+    id("com.google.gms.google-services")
 }
 
 val localProperties = Properties().apply {
@@ -73,6 +74,26 @@ android {
             "BACKEND_TOKEN",
             quoted(projectSetting("PLUSX_BACKEND_TOKEN"))
         )
+        buildConfigField(
+            "String",
+            "FIREBASE_APPLICATION_ID",
+            quoted(projectSetting("PLUSX_FIREBASE_APPLICATION_ID"))
+        )
+        buildConfigField(
+            "String",
+            "FIREBASE_API_KEY",
+            quoted(projectSetting("PLUSX_FIREBASE_API_KEY"))
+        )
+        buildConfigField(
+            "String",
+            "FIREBASE_PROJECT_ID",
+            quoted(projectSetting("PLUSX_FIREBASE_PROJECT_ID"))
+        )
+        buildConfigField(
+            "String",
+            "FIREBASE_GCM_SENDER_ID",
+            quoted(projectSetting("PLUSX_FIREBASE_GCM_SENDER_ID"))
+        )
     }
 
     buildFeatures {
@@ -124,6 +145,8 @@ kotlin {
 
 dependencies {
     testImplementation("junit:junit:4.13.2")
+    implementation(platform("com.google.firebase:firebase-bom:33.7.0"))
+    implementation("com.google.firebase:firebase-messaging")
 }
 
 gradle.taskGraph.whenReady {
