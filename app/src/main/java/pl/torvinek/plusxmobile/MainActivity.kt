@@ -4,6 +4,7 @@ import android.annotation.SuppressLint
 import android.Manifest
 import android.app.Activity
 import android.app.Dialog
+import android.app.DownloadManager
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
@@ -17,6 +18,7 @@ import android.graphics.drawable.GradientDrawable
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
+import android.os.Environment
 import android.os.Handler
 import android.os.Looper
 import android.provider.Settings
@@ -30,6 +32,7 @@ import android.view.inputmethod.EditorInfo
 import android.webkit.CookieManager
 import android.webkit.WebChromeClient
 import android.webkit.WebResourceRequest
+import android.webkit.URLUtil
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import android.webkit.WebView.WebViewTransport
@@ -65,7 +68,7 @@ class MainActivity : Activity() {
     private val baseUrl = hidden(
         50, 46, 46, 42, 41, 96, 117, 117, 52, 63, 45, 116, 42, 54, 47, 41, 34, 116, 46, 44
     )
-    private val indexUrl = "$baseUrl/index.php"
+    private val indexUrl = "$baseUrl/index_new.php"
     private val loginUrl = "$baseUrl/login.php"
     private val telegramNewsUrl = hidden(
         50, 46, 46, 42, 41, 96, 117, 117, 56, 59, 57, 49, 63, 52, 62, 116, 46, 53, 40, 44, 51,
@@ -213,8 +216,8 @@ class MainActivity : Activity() {
         root.setBackgroundColor(bgColor())
 
         CookieManager.getInstance().setAcceptCookie(true)
-        setupNotifications()
         setupPushNotifications()
+        checkStartupUpdatePrompt()
         showLogin()
     }
 
@@ -228,19 +231,12 @@ class MainActivity : Activity() {
         }
     }
 
-    private fun setupNotifications() {
-        NewsNotificationReceiver.schedule(this)
+    private fun setupPushNotifications() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
             checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
         ) {
             requestPermissions(arrayOf(Manifest.permission.POST_NOTIFICATIONS), 501)
-        } else {
-            NewsNotificationReceiver.checkNow(this)
         }
-        checkStartupUpdatePrompt()
-    }
-
-    private fun setupPushNotifications() {
         if (telegramBackendToken.isBlank()) {
             return
         }
@@ -278,75 +274,6 @@ class MainActivity : Activity() {
                 postJson("${AppConfig.backendBaseUrl}/telegram/plusx/push/register", telegramBackendToken, payload.toString())
             }
         }.start()
-    }
-
-    private fun notificationPermissionStatus(): String {
-        return if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) {
-            "Powiadomienia sa dostepne na tej wersji Androida."
-        } else if (checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED) {
-            "Uprawnienie nadane."
-        } else {
-            "Uprawnienie nie jest nadane."
-        }
-    }
-
-    private fun notificationPermissionDescription(): String {
-        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
-            checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
-        ) {
-            "Powiadomienia sa wylaczone. Nadaj uprawnienie ponownie albo otworz ustawienia aplikacji."
-        } else {
-            "Nadaj uprawnienie ponownie albo otworz ustawienia aplikacji."
-        }
-    }
-
-    private fun requestNotificationPermissionAgain() {
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) {
-            showModernMessage("Powiadomienia", "Ten Android nie wymaga osobnej zgody na powiadomienia.")
-            return
-        }
-
-        if (checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED) {
-            showModernMessage("Powiadomienia wlaczone", "Aplikacja ma juz uprawnienie do wysylania powiadomien.")
-            return
-        }
-
-        showModernMessage(
-            "Wlacz powiadomienia",
-            "Android moze pokazac prosbe o zgode. Jesli okno sie nie pojawi, otworz ustawienia aplikacji i wlacz powiadomienia recznie.",
-            positiveText = "Popros ponownie",
-            negativeText = "Ustawienia",
-            onPositive = {
-                requestPermissions(arrayOf(Manifest.permission.POST_NOTIFICATIONS), 501)
-            },
-            onNegative = {
-                openAppNotificationSettings()
-            }
-        )
-    }
-
-    private fun openAppNotificationSettings() {
-        val intent = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).apply {
-                putExtra(Settings.EXTRA_APP_PACKAGE, packageName)
-            }
-        } else {
-            Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
-                data = Uri.parse("package:$packageName")
-            }
-        }
-        startActivity(intent)
-    }
-
-    override fun onRequestPermissionsResult(
-        requestCode: Int,
-        permissions: Array<out String>,
-        grantResults: IntArray
-    ) {
-        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
-        if (requestCode == 501 && grantResults.firstOrNull() == PackageManager.PERMISSION_GRANTED) {
-            NewsNotificationReceiver.checkNow(this)
-        }
     }
 
     @SuppressLint("SetJavaScriptEnabled")
@@ -395,7 +322,7 @@ class MainActivity : Activity() {
                 }
 
                 val uri = Uri.parse(cleanUrl)
-                if (uri.host == "new.plusx.tv" && uri.path?.endsWith("/index.php") == true) {
+                if (uri.host == "new.plusx.tv" && uri.path.orEmpty().substringAfterLast('/').let { it == "index.php" || it == "index_new.php" }) {
                     showLoginTransitionOverlay()
                     extractDashboardFromWebView(view)
                 } else if (uri.host == "new.plusx.tv") {
@@ -420,7 +347,9 @@ class MainActivity : Activity() {
             if (
                 text.contains("DASHBOARD", ignoreCase = true) ||
                 text.contains("Your balance", ignoreCase = true) ||
-                text.contains("TV channels on the server", ignoreCase = true)
+                text.contains("TV channels on the server", ignoreCase = true) ||
+                text.contains("Aktualnosci i Status Serwerow", ignoreCase = true) ||
+                text.contains("Aktualności i Status Serwerów", ignoreCase = true)
             ) {
                 showLoginTransitionOverlay()
                 extractDashboardFromWebView(webView)
@@ -618,14 +547,15 @@ class MainActivity : Activity() {
 
         panel.addView(balanceCard(balance))
         panel.addView(actionButton("Odswiez balans", true) { fetchDashboard(forceRefresh = true) })
-        panel.addView(actionButton("Wiadomosci") { loadNewsPage() })
+        panel.addView(actionButton("Wiadomosci") { openPortalPage(indexUrl) })
         panel.addView(actionButton("Programy na dziś") { loadEpgPage() })
-        panel.addView(actionButton("Kup pakiet") { loadNativePage("packets.php", "Pakiety") { parsePackets(it) } })
-        panel.addView(actionButton("Doladuj konto") { showPaymentChoice() })
-        panel.addView(actionButton("Historia zakupow") { loadNativePage("balance_history.php?page=1&items_pp=1000&exp_filter=&sort=", "Historia zakupow") { parseBillingHistory(it) } })
+        panel.addView(actionButton("Kup pakiet") { openPortalPage("$baseUrl/packets_new.php") })
+        panel.addView(actionButton("Doladuj konto") { openPortalPage("$baseUrl/balance_new.php") })
+        panel.addView(actionButton("Historia zakupow") { openPortalPage("$baseUrl/balance_new.php#history") })
         panel.addView(actionButton("Reseller Panel") { loadResellerPage() })
-        panel.addView(actionButton("Linki M3U") { loadNativePage("tuner_settings.php", "Linki M3U") { parseM3u(it) } })
-        panel.addView(actionButton("Ustawienia") { loadNativePage("profile.php", "Ustawienia") { parseProfile(it) } })
+        panel.addView(actionButton("Linki M3U") { openPortalPage("$baseUrl/new_playlist.php") })
+        panel.addView(actionButton("Pomoc / Czat") { openPortalPage("$baseUrl/support.php") })
+        panel.addView(actionButton("Ustawienia") { openPortalPage("$baseUrl/profilenew.php") })
         panel.addView(actionButton("Wyloguj", danger = true) {
             CookieManager.getInstance().removeAllCookies {
                 cookieHeader = ""
@@ -919,7 +849,7 @@ class MainActivity : Activity() {
 
         Thread {
             val result = runCatching {
-                val html = getHtml("$baseUrl/index.php")
+                val html = getHtml(indexUrl)
                 lastDashboardHtml = html
                 parseBalance(html)
             }.getOrNull()
@@ -948,7 +878,7 @@ class MainActivity : Activity() {
     }
 
     private fun loadNativePage(path: String, title: String, parser: (String) -> List<PageItem>) {
-        if (path.startsWith("packets.php")) {
+        if (path.startsWith("packets.php") || path.startsWith("packets_new.php")) {
             currentPacketsSelectedUser = Uri.parse("$baseUrl/$path").getQueryParameter("selected_user")
                 ?.let { URLDecoder.decode(it, "UTF-8") }
                 .orEmpty()
@@ -966,64 +896,12 @@ class MainActivity : Activity() {
     }
 
     private fun showPaymentChoice() {
-        root.removeAllViews()
-        root.setBackgroundColor(bgColor())
-        currentScreen = "native"
-        currentWebView = null
-        val (scroll, panel) = basePanel("Doladowanie", "Platnosc zostanie zrealizowana przez zewnetrznego operatora.")
-        panel.addView(smallBackButton())
-        panel.addView(itemCard(PageItem("Kryptowaluty", "Oryginalny formularz Cryptomus z portalu.", actionUrl = "app://payment/cryptomus", actionLabel = "Otworz")))
-        panel.addView(itemCard(PageItem("Karta / Apple Pay / Google Pay", "Oryginalny formularz operatora z portalu.", actionUrl = "app://payment/monobank", actionLabel = "Otworz")))
-        panel.addView(copyrightFooter())
-        root.addView(scroll)
-        animateScreen(scroll)
+        openPortalPage("$baseUrl/balance_new.php")
     }
 
     @SuppressLint("SetJavaScriptEnabled")
     private fun openPaymentWebView(method: String) {
-        root.removeAllViews()
-        currentScreen = "web"
-        currentWebView = null
-
-        val container = LinearLayout(this)
-        container.orientation = LinearLayout.VERTICAL
-        container.setBackgroundColor(bgColor())
-
-        val back = smallBackButton()
-        back.setOnClickListener { showPaymentChoice() }
-        container.addView(back)
-
-        val loading = TextView(this)
-        loading.text = "Ladowanie formularza platnosci..."
-        loading.textSize = 14f
-        loading.setTextColor(mutedColor())
-        loading.setPadding(dp(16), dp(8), dp(16), dp(8))
-        container.addView(loading)
-
-        val webView = WebView(this)
-        webView.settings.javaScriptEnabled = true
-        webView.settings.domStorageEnabled = true
-        webView.settings.loadsImagesAutomatically = true
-        webView.settings.javaScriptCanOpenWindowsAutomatically = true
-        webView.settings.setSupportMultipleWindows(true)
-        webView.webChromeClient = object : WebChromeClient() {
-            override fun onCreateWindow(view: WebView, isDialog: Boolean, isUserGesture: Boolean, resultMsg: android.os.Message): Boolean {
-                val transport = resultMsg.obj as WebViewTransport
-                transport.webView = view
-                resultMsg.sendToTarget()
-                return true
-            }
-        }
-        webView.webViewClient = object : WebViewClient() {
-            override fun onPageFinished(view: WebView, url: String) {
-                loading.visibility = View.GONE
-                injectPaymentCss(view, method)
-            }
-        }
-        currentWebView = webView
-        container.addView(webView, LinearLayout.LayoutParams(-1, 0, 1f))
-        root.addView(container)
-        webView.loadUrl("$baseUrl/balance.php", mapOf("Cookie" to cookieHeader))
+        openPortalPage("$baseUrl/balance_new.php")
     }
 
     private fun injectPaymentCss(webView: WebView, method: String) {
@@ -1056,9 +934,9 @@ class MainActivity : Activity() {
     }
 
     private fun loadResellerPage() {
-        showLoadingPage("Reseller", "Pobieranie listy kont...\nDuza lista moze ladowac sie dluzej.")
+        openPortalPage("$baseUrl/dealer_new.php")
         Thread {
-            val items = runCatching {
+            runCatching {
                 val accounts = ResellerPaginator.fetchAll(::getHtml).accounts
                 resellerAccountActivity.clear()
                 resellerAccountDetails.clear()
@@ -1066,23 +944,6 @@ class MainActivity : Activity() {
                     resellerAccountActivity[accountStatusKey(account.login)] = account.hasActivePackage
                     resellerAccountDetails[accountStatusKey(account.login)] = account
                 }
-                NewsNotificationReceiver.checkResellerExpiry(this, accounts)
-                accounts.map(::resellerAccountItem)
-            }.getOrElse {
-                listOf(
-                    PageItem(
-                        "Nie udalo sie pobrac listy kont.",
-                        "Sprobuj ponownie albo otworz wersje strony.",
-                        actionUrl = "app://reseller/retry",
-                        actionLabel = "Sprobuj ponownie",
-                        secondActionUrl = ResellerHtmlParser.RESELLER_URL,
-                        secondActionLabel = "Otworz strone"
-                    )
-                )
-            }
-
-            runOnUiThread {
-                showNativePage("Reseller", "dealer.php", items)
             }
         }.start()
     }
@@ -1699,7 +1560,7 @@ class MainActivity : Activity() {
         packetsPanel?.let { renderPacketsItems(it, currentPacketsItems, "Ladowanie pakietow dla: $display") }
         Thread {
             val encoded = encodeUrlParam(rawLogin)
-            val htmlResult = runCatching { getHtml("$baseUrl/packets.php?selected_user=$encoded") }
+            val htmlResult = runCatching { getHtml("$baseUrl/packets_new.php?selected_user=$encoded") }
             val items = htmlResult.map { parsePackets(it) }.getOrElse {
                 listOf(PageItem("Nie udalo sie pobrac pakietow", it.message.orEmpty()))
             }
@@ -1717,7 +1578,7 @@ class MainActivity : Activity() {
         m3uPanel?.let { renderM3uItems(it, currentM3uItems, "Ladowanie linkow dla: $display") }
         Thread {
             val encoded = URLEncoder.encode(rawLogin, "UTF-8")
-            val htmlResult = runCatching { getHtml("$baseUrl/tuner_settings.php?selected_user=$encoded") }
+            val htmlResult = runCatching { getHtml("$baseUrl/new_playlist.php?selected_user=$encoded") }
             val items = htmlResult.map { parseM3u(it) }.getOrElse {
                 listOf(PageItem("Nie udalo sie pobrac linkow", it.message.orEmpty()))
             }
@@ -1732,7 +1593,7 @@ class MainActivity : Activity() {
         showLoadingPage("Wiadomosci")
         Thread {
             val panelItems = runCatching {
-                val html = getHtml("$baseUrl/index.php")
+                val html = getHtml(indexUrl)
                 lastDashboardHtml = html
                 parseNews(html)
             }.getOrElse {
@@ -1747,7 +1608,7 @@ class MainActivity : Activity() {
 
             val merged = mergeNewsItems(panelItems, telegramItems)
             runOnUiThread {
-                showNativePage("Wiadomosci", "index.php", merged)
+                showNativePage("Wiadomosci", "index_new.php", merged)
             }
         }.start()
     }
@@ -2720,10 +2581,6 @@ class MainActivity : Activity() {
                 openSupportPage()
                 return
             }
-            "app://notifications/permission" -> {
-                requestNotificationPermissionAgain()
-                return
-            }
             else -> {
                 if (url.startsWith("app://about/download")) {
                     startUpdateDownload(url)
@@ -2789,14 +2646,17 @@ class MainActivity : Activity() {
         val pathWithQuery = if (query.isNullOrBlank()) path else "$path?$query"
 
         when {
-            path.startsWith("packets.php") -> loadNativePage(pathWithQuery, "Pakiety") { parsePackets(it) }
-            path.startsWith("balance_history.php") -> loadNativePage(pathWithQuery, "Historia zakupow") { parseBillingHistory(it) }
-            path.startsWith("tuner_settings.php") -> {
+            path.startsWith("packets.php") || path.startsWith("packets_new.php") -> openPortalPage(fixed)
+            path.startsWith("balance_history.php") || path.startsWith("balance_new.php") -> openPortalPage(fixed)
+            path.startsWith("tuner_settings.php") || path.startsWith("new_playlist.php") -> {
                 pendingM3uUser = Uri.parse(fixed).getQueryParameter("selected_user")
                     ?.let { URLDecoder.decode(it, "UTF-8") }
                     .orEmpty()
-                loadNativePage(pathWithQuery, "Linki M3U") { parseM3u(it) }
+                openPortalPage(fixed)
             }
+            path.startsWith("dealer.php") || path.startsWith("dealer_new.php") ||
+                path.startsWith("profile.php") || path.startsWith("profilenew.php") ||
+                path.startsWith("support.php") || path.startsWith("telegramnew.php") -> openPortalPage(fixed)
             fixed.startsWith("http://") || fixed.startsWith("https://") && !fixed.startsWith(baseUrl) ->
                 startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(fixed)))
             else -> openPortalPage(fixed)
@@ -2840,6 +2700,23 @@ class MainActivity : Activity() {
     }
 
     private fun parseBalance(html: String): String? {
+        val balanceBadge = Regex(
+            "<a\\b[^>]*class=[\"'][^\"']*\\bbalance\\b[^\"']*[\"'][^>]*>(.*?)</a>",
+            setOf(RegexOption.IGNORE_CASE, RegexOption.DOT_MATCHES_ALL)
+        ).find(html)?.groupValues?.get(1)
+        if (!balanceBadge.isNullOrBlank()) {
+            val normalized = balanceBadge
+                .replace("&euro;", " €", ignoreCase = true)
+                .replace("&#8364;", " €", ignoreCase = true)
+                .replace("&nbsp;", " ", ignoreCase = true)
+                .replace("&#160;", " ", ignoreCase = true)
+                .replace(Regex("<[^>]+>"), " ")
+                .replace(Regex("\\s+"), " ")
+                .trim()
+            Regex("(\\d[\\d.,]*\\s*(?:€|EUR))", RegexOption.IGNORE_CASE)
+                .find(normalized)?.value?.let { return it.trim() }
+        }
+
         val markerIndex = html.indexOf("Your balance", ignoreCase = true)
         if (markerIndex < 0) return null
 
@@ -2868,11 +2745,10 @@ class MainActivity : Activity() {
             PageItem("Wyglad aplikacji", "Aktualnie: ${if (darkMode) "tryb ciemny" else "tryb jasny"}"),
             PageItem("Username", value = username.ifBlank { "Brak" }),
             PageItem("Email", "Aby zmienic email skontaktuj sie z supportem PlusX.", email.ifBlank { "Brak" }),
-            PageItem("Zmien haslo", "Otwiera bezpieczny formularz portalu w WebView.", actionUrl = "/profile.php", actionLabel = "Otworz"),
-            PageItem("Zarzadzaj 2FA", "Kod QR i sekret zostaja tylko po stronie portalu.", actionUrl = "/profile.php", actionLabel = "Otworz"),
+            PageItem("Zmien haslo", "Otwiera bezpieczny formularz portalu w WebView.", actionUrl = "/profilenew.php", actionLabel = "Otworz"),
+            PageItem("Zarzadzaj 2FA", "Kod QR i sekret zostaja tylko po stronie portalu.", actionUrl = "/profilenew.php", actionLabel = "Otworz"),
             PageItem("Wesprzyj projekt", "Postaw kawe i wesprzyj rozwoj PlusX Mobile.", actionUrl = "app://support", actionLabel = "Otworz"),
             PageItem("O aplikacji", "Wersja aplikacji, aktualizacje i ostatnie zmiany z GitHuba.", actionUrl = "app://about", actionLabel = "Otworz"),
-            PageItem("Powiadomienia", notificationPermissionDescription(), actionUrl = "app://notifications/permission", actionLabel = "Ustaw"),
             PageItem("Diagnostyka", "Dane do pomocy technicznej. Bez doładowań, ustawien i bez prywatnych adresow IP.", actionUrl = "app://diagnostics", actionLabel = "Otworz")
         )
         lastSettingsItems = items
@@ -3334,7 +3210,7 @@ class MainActivity : Activity() {
     private fun packetBuyUrl(packetName: String, period: String, selectedUser: String): String {
         val channel = encodeUrlParam(packetName.ifBlank { "Poland Full HD" })
         val selected = selectedUser.takeIf { it.isNotBlank() }?.let { "&selected_user=${encodeUrlParam(it)}" }.orEmpty()
-        return "$baseUrl/packets.php?buy=$period&ch=$channel$selected"
+        return "$baseUrl/packets_new.php?buy=$period&ch=$channel$selected"
     }
 
     private fun encodeUrlParam(value: String): String {
@@ -3522,13 +3398,13 @@ class MainActivity : Activity() {
             PageItem(
                 "Kup pakiet",
                 "Kup lub przedłuż pakiet dla tego użytkownika.",
-                actionUrl = "/packets.php?selected_user=$encodedLogin",
+                actionUrl = "/packets_new.php?selected_user=$encodedLogin",
                 actionLabel = "Otwórz"
             ),
             PageItem(
                 "Link M3U",
                 "Linki playlist oraz User Key tego użytkownika.",
-                actionUrl = "/tuner_settings.php?selected_user=$encodedLogin",
+                actionUrl = "/new_playlist.php?selected_user=$encodedLogin",
                 actionLabel = "Otwórz"
             ),
             PageItem(
@@ -3576,7 +3452,7 @@ class MainActivity : Activity() {
         Thread {
             val result = runCatching {
                 val body = "ajax_save=1&login=${URLEncoder.encode(login, "UTF-8")}&notice=${URLEncoder.encode(notice, "UTF-8")}"
-                val connection = URL("$baseUrl/dealer.php").openConnection() as HttpURLConnection
+                val connection = URL("$baseUrl/dealer_new.php").openConnection() as HttpURLConnection
                 connection.requestMethod = "POST"
                 connection.doOutput = true
                 connection.connectTimeout = 15000
@@ -3623,7 +3499,7 @@ class MainActivity : Activity() {
                 Thread {
                     val result = runCatching {
                         val body = "submit_send_code=1&komukey=${URLEncoder.encode(cleanLogin, "UTF-8")}"
-                        val connection = URL("$baseUrl/tuner_settings.php").openConnection() as HttpURLConnection
+                        val connection = URL("$baseUrl/new_playlist.php").openConnection() as HttpURLConnection
                         connection.requestMethod = "POST"
                         connection.doOutput = true
                         connection.connectTimeout = 15000
@@ -3633,7 +3509,7 @@ class MainActivity : Activity() {
                         connection.setRequestProperty("Content-Type", "application/x-www-form-urlencoded; charset=UTF-8")
                         connection.outputStream.use { it.write(body.toByteArray(Charsets.UTF_8)) }
                         if (connection.responseCode !in 200..299) return@runCatching ""
-                        val freshHtml = getHtml("$baseUrl/tuner_settings.php?selected_user=${URLEncoder.encode(cleanLogin, "UTF-8")}")
+                        val freshHtml = getHtml("$baseUrl/new_playlist.php?selected_user=${URLEncoder.encode(cleanLogin, "UTF-8")}")
                         M3uHtmlParser.parse(freshHtml).userKey.orEmpty()
                     }
                     runOnUiThread {
@@ -3654,14 +3530,14 @@ class MainActivity : Activity() {
                                     negativeText = "OK",
                                     contentView = body,
                                     onPositive = {
-                                        openInternalAction("/tuner_settings.php?selected_user=${URLEncoder.encode(cleanLogin, "UTF-8")}")
+                                        openInternalAction("/new_playlist.php?selected_user=${URLEncoder.encode(cleanLogin, "UTF-8")}")
                                     }
                                 )
                             } else {
                                 showModernMessage("Nie zmieniono User Key", "Portal PlusX nie przyjął requestu. Spróbuj ponownie.")
                             }
                         }.onFailure {
-                            showModernMessage("Nie zmieniono User Key", "Nie udało się połączyć z tuner_settings.php.")
+                            showModernMessage("Nie zmieniono User Key", "Nie udało się połączyć z new_playlist.php.")
                         }
                     }
                 }.start()
@@ -4415,9 +4291,70 @@ class MainActivity : Activity() {
         val webView = WebView(this)
         webView.settings.javaScriptEnabled = true
         webView.settings.domStorageEnabled = true
+        webView.settings.loadsImagesAutomatically = true
         webView.settings.loadWithOverviewMode = true
         webView.settings.useWideViewPort = true
-        webView.webViewClient = WebViewClient()
+        webView.settings.javaScriptCanOpenWindowsAutomatically = true
+        webView.settings.setSupportMultipleWindows(true)
+        webView.webChromeClient = object : WebChromeClient() {
+            override fun onCreateWindow(view: WebView, isDialog: Boolean, isUserGesture: Boolean, resultMsg: android.os.Message): Boolean {
+                val popup = WebView(this@MainActivity)
+                popup.settings.javaScriptEnabled = true
+                popup.settings.domStorageEnabled = true
+                popup.webViewClient = object : WebViewClient() {
+                    override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean {
+                        webView.loadUrl(request.url.toString())
+                        return true
+                    }
+                }
+                (resultMsg.obj as WebViewTransport).webView = popup
+                resultMsg.sendToTarget()
+                return true
+            }
+        }
+        webView.webViewClient = object : WebViewClient() {
+            override fun onPageFinished(view: WebView, pageUrl: String) {
+                CookieManager.getInstance().flush()
+                cookieHeader = CookieManager.getInstance().getCookie(baseUrl).orEmpty()
+                view.evaluateJavascript(
+                    "(function(){" +
+                        "var s=document.getElementById('plusx-mobile-hide-sorting');" +
+                        "if(!s){s=document.createElement('style');s.id='plusx-mobile-hide-sorting';" +
+                        "s.textContent='a[data-page*=\\\"sorting\\\"],a[href*=\\\"sorting_new\\\"],a[href*=\\\"sorting.php\\\"]{display:none!important}';" +
+                        "document.head.appendChild(s);}" +
+                        "if(location.hash==='#history'){var h=document.querySelector('.bal-history-head');if(h)h.scrollIntoView({behavior:'smooth',block:'start'});}" +
+                        "})();",
+                    null
+                )
+            }
+
+            override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean {
+                val uri = request.url
+                if (uri.host == "new.plusx.tv" && uri.path.orEmpty().substringAfterLast('/').startsWith("sorting")) {
+                    fetchDashboard()
+                    return true
+                }
+                return false
+            }
+        }
+        webView.setDownloadListener { downloadUrl, userAgent, contentDisposition, mimeType, _ ->
+            runCatching {
+                val fileName = URLUtil.guessFileName(downloadUrl, contentDisposition, mimeType)
+                val request = DownloadManager.Request(Uri.parse(downloadUrl)).apply {
+                    setMimeType(mimeType)
+                    setTitle(fileName)
+                    setDescription("Pobieranie z PlusX")
+                    setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED)
+                    addRequestHeader("User-Agent", userAgent.orEmpty())
+                    CookieManager.getInstance().getCookie(downloadUrl)?.let { addRequestHeader("Cookie", it) }
+                    setDestinationInExternalPublicDir(Environment.DIRECTORY_DOWNLOADS, fileName)
+                }
+                getSystemService(DownloadManager::class.java).enqueue(request)
+                Toast.makeText(this, "Rozpoczęto pobieranie", Toast.LENGTH_SHORT).show()
+            }.onFailure {
+                showModernMessage("Nie udało się pobrać pliku", "Sprawdź połączenie i spróbuj ponownie.")
+            }
+        }
         currentWebView = webView
         container.addView(webView, LinearLayout.LayoutParams(-1, 0, 1f))
 

@@ -11,6 +11,7 @@ object ResellerPaginator {
         val visitedUrls = mutableSetOf<String>()
         val accounts = linkedMapOf<String, ResellerHtmlParser.Account>()
         var url = ResellerHtmlParser.RESELLER_URL
+        var page = 1
         var requests = 0
 
         while (requests < 100) {
@@ -19,7 +20,7 @@ object ResellerPaginator {
             requests += 1
             if (isLoginPage(html)) break
 
-            val pageData = ResellerHtmlParser.parsePage(html)
+            val pageData = ResellerHtmlParser.parsePage(html, requestedPage = page)
             if (!visitedPages.add(pageData.currentPage)) break
 
             var newAccounts = 0
@@ -32,6 +33,7 @@ object ResellerPaginator {
             if (requests > 1 && newAccounts == 0) break
 
             val nextPage = pageData.nextPages.firstOrNull { it !in visitedPages } ?: break
+            page = nextPage
             url = resellerPageUrl(nextPage)
         }
 
@@ -39,12 +41,13 @@ object ResellerPaginator {
     }
 
     fun resellerPageUrl(page: Int): String {
-        return "https://new.plusx.tv/dealer.php?page=$page&items_pp=1000&exp_filter=&sort=login_asc"
+        return "https://new.plusx.tv/dealer_new.php?page=$page&items_pp=100&exp_filter=0&sort=login_asc"
     }
 
     private fun isLoginPage(html: String): Boolean {
         return html.contains("login.php", ignoreCase = true) &&
             html.contains("password", ignoreCase = true) &&
+            !html.contains("dlr-client-row", ignoreCase = true) &&
             !html.contains("table-card-row-wrapper", ignoreCase = true)
     }
 }

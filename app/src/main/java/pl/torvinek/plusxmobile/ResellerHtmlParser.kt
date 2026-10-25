@@ -1,7 +1,7 @@
 package pl.torvinek.plusxmobile
 
 object ResellerHtmlParser {
-    const val RESELLER_URL = "https://new.plusx.tv/dealer.php?page=1&items_pp=1000&exp_filter=&sort=login_asc"
+    const val RESELLER_URL = "https://new.plusx.tv/dealer_new.php?page=1&items_pp=100&exp_filter=0&sort=login_asc"
 
     data class Account(
         val login: String,
@@ -17,8 +17,8 @@ object ResellerHtmlParser {
         val nextPages: List<Int>
     )
 
-    fun parsePage(html: String): PageData {
-        val currentPage = parseCurrentPage(html)
+    fun parsePage(html: String, requestedPage: Int? = null): PageData {
+        val currentPage = requestedPage ?: parseCurrentPage(html)
         return PageData(
             currentPage = currentPage,
             accounts = parseAccounts(html),
@@ -27,6 +27,12 @@ object ResellerHtmlParser {
     }
 
     fun parseAccounts(html: String): List<Account> {
+        val newRows = Regex("<tr\\b[^>]*class=[\"'][^\"']*\\bdlr-client-row\\b[^\"']*[\"'][^>]*>(.*?)</tr>", setOf(RegexOption.IGNORE_CASE, RegexOption.DOT_MATCHES_ALL))
+            .findAll(html)
+            .mapNotNull { match -> parseNewAccountRow(match.groupValues[1]) }
+            .toList()
+        if (newRows.isNotEmpty()) return newRows.distinctBy { it.login }
+
         return Regex("<tr\\b[^>]*class=[\"'][^\"']*table-card-row-wrapper[^\"']*[\"'][^>]*>(.*?)</tr>", setOf(RegexOption.IGNORE_CASE, RegexOption.DOT_MATCHES_ALL))
             .findAll(html)
             .mapNotNull { match ->
@@ -61,6 +67,31 @@ object ResellerHtmlParser {
             .toList()
     }
 
+    private fun parseNewAccountRow(row: String): Account? {
+        val loginBlock = Regex("<div\\b[^>]*class=[\"'][^\"']*\\bdlr-login-name\\b[^\"']*[\"'][^>]*>(.*?)</div>", setOf(RegexOption.IGNORE_CASE, RegexOption.DOT_MATCHES_ALL))
+            .find(row)?.groupValues?.get(1).orEmpty()
+        val login = loginBlock
+            .replace(Regex("<span\\b[^>]*class=[\"'][^\"']*\\bdlr-key-sub\\b[^\"']*[\"'][^>]*>.*?</span>", setOf(RegexOption.IGNORE_CASE, RegexOption.DOT_MATCHES_ALL)), " ")
+            .let(::cleanText)
+        if (login.isBlank()) return null
+
+        val noticeInput = Regex("<input\\b(?=[^>]*class=[\"'][^\"']*\\bdlr-notice-input\\b[^\"']*[\"'])[^>]*>", RegexOption.IGNORE_CASE)
+            .find(row)?.value.orEmpty()
+        val notice = extractAttribute(noticeInput, "value").orEmpty().let(::cleanText)
+        val expiry = Regex("class=[\"'][^\"']*\\bdlr-exp-date\\b[^\"']*[\"'][^>]*>(.*?)</", setOf(RegexOption.IGNORE_CASE, RegexOption.DOT_MATCHES_ALL))
+            .find(row)?.groupValues?.get(1)?.let(::cleanText).orEmpty()
+        val days = Regex("class=[\"'][^\"']*\\bdlr-days-badge\\b[^\"']*[\"'][^>]*>(.*?)</", setOf(RegexOption.IGNORE_CASE, RegexOption.DOT_MATCHES_ALL))
+            .find(row)?.groupValues?.get(1)?.let(::cleanText).orEmpty()
+
+        return Account(
+            login = login,
+            notice = notice,
+            expiry = expiry,
+            days = days,
+            hasActivePackage = !row.contains("dlr-no-pkg", ignoreCase = true)
+        )
+    }
+
     fun parseCurrentPage(html: String): Int {
         return Regex("class=[\"'][^\"']*current-page-badge[^\"']*[\"'][^>]*>(\\d+)<", RegexOption.IGNORE_CASE)
             .find(html)
@@ -71,7 +102,7 @@ object ResellerHtmlParser {
     }
 
     fun parseNextPages(html: String, currentPage: Int = parseCurrentPage(html)): List<Int> {
-        return Regex("<a\\b[^>]*class=[\"'][^\"']*nav-arrow[^\"']*[\"'][^>]*href=[\"']([^\"']+)[\"'][^>]*>", RegexOption.IGNORE_CASE)
+        return Regex("<a\\b[^>]*href=[\"']([^\"']+)[\"'][^>]*>", RegexOption.IGNORE_CASE)
             .findAll(html)
             .mapNotNull { hrefMatch ->
                 Regex("[?&]page=(\\d+)", RegexOption.IGNORE_CASE)

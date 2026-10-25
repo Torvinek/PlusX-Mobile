@@ -77,6 +77,42 @@ class ResellerPaginationTest {
         assertEquals("Salon TV", data.single().notice)
     }
 
+    @Test
+    fun parserReadsNewPortalAccountRowsWithoutTreatingSubBadgeAsLogin() {
+        val accounts = ResellerHtmlParser.parseAccounts(
+            """
+            <tr class="dlr-client-row">
+              <td><div class="dlr-user-cell"><div class="dlr-login-meta">
+                <div class="dlr-login-name">customer@example.test<span class="dlr-key-sub">SUB</span></div>
+              </div></div></td>
+              <td><div class="dlr-notice-wrap"><input class="dlr-notice-input" value="Family room"></div></td>
+              <td><div class="dlr-pkg-wrap"><span class="dlr-exp-date">22.08.2026</span><span class="dlr-days-badge status-ok">49 Days</span></div></td>
+            </tr>
+            <tr class="dlr-client-row">
+              <td><div class="dlr-user-cell"><div class="dlr-login-meta"><div class="dlr-login-name">second-client</div></div></div></td>
+              <td><div class="dlr-notice-wrap"><input class="dlr-notice-input" value=""></div></td>
+              <td><span class="dlr-no-pkg">No active packages</span></td>
+            </tr>
+            """.trimIndent()
+        )
+
+        assertEquals(2, accounts.size)
+        assertEquals("customer@example.test", accounts[0].login)
+        assertEquals("Family room", accounts[0].notice)
+        assertEquals("22.08.2026", accounts[0].expiry)
+        assertEquals("49 Days", accounts[0].days)
+        assertEquals(true, accounts[0].hasActivePackage)
+        assertEquals(false, accounts[1].hasActivePackage)
+    }
+
+    @Test
+    fun resellerRequestsUseNewPortalEndpointAndPageSize() {
+        assertEquals(
+            "https://new.plusx.tv/dealer_new.php?page=2&items_pp=100&exp_filter=0&sort=login_asc",
+            ResellerPaginator.resellerPageUrl(2)
+        )
+    }
+
     private fun String.pageParam(): Int {
         return Regex("[?&]page=(\\d+)").find(this)?.groupValues?.get(1)?.toInt() ?: 1
     }
