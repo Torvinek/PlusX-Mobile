@@ -441,7 +441,7 @@ Jeśli PlusX Mobile Ci się spodobał albo ułatwił korzystanie z panelu, może
 
 - GitHub: [@Torvinek](https://github.com/Torvinek)
 - Telegram: [@marclxz](https://t.me/marclxz)
-- E-mail: [prywatny.marcelo@gmail.com](mailto:prywatny.marcelo@gmail.com)
+- E-mail: [kontakt@torvinek.pl](mailto:kontakt@torvinek.pl)
 
 <p align="center">
   <strong>© Torvinek 2026</strong><br>
